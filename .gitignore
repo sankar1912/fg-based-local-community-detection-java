@@ -1,0 +1,9 @@
+# Machine-local build output and temporary tooling caches
+out/
+tmp/
+*.class
+
+# Local IDE metadata
+.idea/
+*.iml
+.vscode/
