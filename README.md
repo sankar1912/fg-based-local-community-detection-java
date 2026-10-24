@@ -346,6 +346,14 @@ See [PAPER_ANALYSIS.md](PAPER_ANALYSIS.md) for the equations, algorithm
 mapping, reported findings, exact Table I LFR parameters, and the distinction
 between paper-reference values and code-generated results.
 
+The full original IEEE-style manuscript is in
+[`paper/adaptive_beam_fg_ieee.tex`](paper/adaptive_beam_fg_ieee.tex), with
+compilation and authorship instructions in
+[`paper/README.md`](paper/README.md). It describes the baseline FG method,
+the AdaptiveBeam novelty, the complete 3,000-seed results, limitations, and
+reproducibility protocol without presenting generated LFR results as the
+paper's exact original tables.
+
 The beam-search evaluator additionally uses incremental folding statistics,
 state-level modularity caching, resumable per-seed output, and CSV
 canonicalization after interruption. These changes are documented in
