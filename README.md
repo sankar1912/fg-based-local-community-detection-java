@@ -80,6 +80,9 @@ and detected network structure.
 | `NoveltyExperiment.java` | Trains on LFR1-LFR5 and compares base FG against the novelty on held-out LFR6-LFR9. |
 | `NoveltyParameterSweep.java` | Tunes membership weight, external penalty, and minimum compatibility on validation LFR3-LFR5 after training on LFR1-LFR2. |
 | `NoveltyVisualization.java` | Converts computed novelty summary CSV files into base-versus-novelty PNG charts. |
+| `PairwiseCandidateScorer.java` | Learns positive-versus-negative candidate ordering from the same seed query. |
+| `PairwiseRankingExperiment.java` | Tunes and evaluates the pairwise ranking novelty against FG and pointwise logistic selection. |
+| `PairwiseRankingVisualization.java` | Generates the pairwise-versus-FG F1 figure. |
 
 ## Build
 

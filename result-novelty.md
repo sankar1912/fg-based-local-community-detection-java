@@ -179,6 +179,67 @@ This checkpoint is not included in any final mean, confidence interval, or
 research conclusion. The evaluator is restartable and skips completed
 dataset/seed/model rows.
 
+## New algorithm: query-conditioned pairwise ranking
+
+To target the base paper's candidate-ordering weakness, the project now also
+implements `PairwiseCandidateScorer`. Instead of independently classifying a
+candidate as compatible or incompatible, it creates positive-minus-negative
+pairs from the same seed query and learns an ordering objective:
+
+```text
+score(positive candidate) > score(negative candidate)
+```
+
+The pairwise ranker uses the same nine local features, the same LFR1-LFR5
+training data, the same safe gate, and the same FG folding/modularity/
+relaxation stages. It does not use LFR6-LFR9 labels during tuning.
+
+### Tuned pairwise five-seed result
+
+Source: [`output/pairwise-ranking-results-tuned-5/summary.csv`](output/pairwise-ranking-results-tuned-5/summary.csv)
+
+The pairwise gate was tuned on the first five deterministic eligible seeds of
+LFR3-LFR5. The selected configuration was `membership_weight=0.20`,
+`modularity_slack=0.00`, and `minimum_membership=0.60`.
+
+| Dataset | FG F1 | Pointwise logistic F1 | Pairwise rank F1 | Pairwise difference |
+|---|---:|---:|---:|---:|
+| LFR6 | 0.8622 | 0.8622 | 0.8622 | 0.0000 |
+| LFR7 | 0.2679 | 0.2679 | 0.2679 | 0.0000 |
+| LFR8 | 0.5935 | 0.6034 | 0.5935 | 0.0000 |
+| LFR9 | 0.6826 | 0.6826 | 0.6826 | 0.0000 |
+| **Mean** | **0.6016** | **0.6040** | **0.6016** | **0.0000** |
+
+This is an important negative finding: pairwise ranking is a principled
+algorithmic improvement over pointwise labels, but it did not improve the
+end-to-end result under the frozen validation-selected gate. The pointwise
+logistic hybrid improved LFR8 slightly in this properly tuned rerun, but the
+gain is too small and inconsistent to support a universal claim.
+
+An earlier exploratory fixed-gate run is retained in
+`output/pairwise-ranking-results-5/`; it showed pairwise F1 `0.6382` mean and
+pointwise F1 `0.7028` mean, but that configuration was not selected by the
+validation sweep and must not be used as the final claim.
+
+Pairwise artifacts:
+
+- [`experiment-config.txt`](output/pairwise-ranking-results-tuned-5/experiment-config.txt)
+- [`validation-sweep.csv`](output/pairwise-ranking-results-tuned-5/validation-sweep.csv)
+- [`pairwise-ranking-model.txt`](output/pairwise-ranking-results-tuned-5/pairwise-ranking-model.txt)
+- [`pointwise-logistic.txt`](output/pairwise-ranking-results-tuned-5/pointwise-logistic.txt)
+- [`per-seed.csv`](output/pairwise-ranking-results-tuned-5/per-seed.csv)
+- [`summary.csv`](output/pairwise-ranking-results-tuned-5/summary.csv)
+- [`pairwise-vs-fg-f1.png`](output/pairwise-ranking-results-tuned-5/figures/pairwise-vs-fg-f1.png)
+
+![Pairwise ranker comparison](output/pairwise-ranking-results-tuned-5/figures/pairwise-vs-fg-f1.png)
+
+The best currently supported conclusion is therefore that safe-gated
+pointwise logistic selection remains the strongest tested learned variant in
+the exploratory five-seed comparisons, while pairwise ranking exposes a
+useful but not yet successful direction for correcting the base paper's greedy
+candidate ordering. The all-eligible-seed run is still required before making
+a final performance claim.
+
 ## Reproducible commands
 
 Compile and run tests:
