@@ -84,40 +84,121 @@ public final class AdaptiveBeamExperiment {
   private static void run(Path data, Path output, CandidateScorer scorer, int budget, int limit)
       throws Exception {
     Path file = output.resolve("per-seed.csv");
-    try (BufferedWriter writer = Files.newBufferedWriter(file)) {
-      writer.write("dataset,seed,method,recall,precision,f1,runtime_ms\n");
+    canonicalize(file);
+    Set<String> completed = loadCompleted(file);
+    boolean append = Files.exists(file) && Files.size(file) > 0;
+    try (BufferedWriter writer =
+        append
+            ? Files.newBufferedWriter(file, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+            : Files.newBufferedWriter(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      if (!append) writer.write("dataset,seed,method,recall,precision,f1,runtime_ms\n");
       for (int index = 5; index < 9; index++) {
         LfrSpec spec = LfrSpec.paperTable()[index];
         Graph graph = DatasetReader.edgeList(data.resolve(spec.name() + ".edgelist"), false);
         List<Set<Integer>> truth =
             DatasetReader.communities(data.resolve(spec.name() + ".truth"), false);
         List<Integer> seeds = firstSeeds(graph, truth, limit);
+        ThreadLocal<DetectorContext> contexts =
+            ThreadLocal.withInitial(() -> new DetectorContext(graph, scorer, budget));
         ExecutorService pool = Executors.newFixedThreadPool(Math.min(4, seeds.size()));
         List<Future<List<String>>> jobs = new ArrayList<>();
-        for (int seed : seeds)
-          jobs.add(pool.submit(() -> evaluate(spec.name(), graph, truth, seed, scorer, budget)));
-        for (Future<List<String>> job : jobs) for (String row : job.get()) writer.write(row);
+        for (int seed : seeds) {
+          boolean complete = true;
+          for (String method : List.of("FG", "BeamLogistic", "AdaptiveBeam"))
+            if (!completed.contains(key(spec.name(), seed, method))) complete = false;
+          if (!complete)
+            jobs.add(
+                pool.submit(
+                    () -> evaluate(spec.name(), truth, seed, contexts.get())));
+        }
+        for (Future<List<String>> job : jobs)
+          for (String row : job.get()) {
+            writer.write(row);
+            String[] parts = row.split(",", -1);
+            completed.add(key(parts[0], Integer.parseInt(parts[1]), parts[2]));
+          }
         writer.flush();
         pool.shutdown();
-        System.out.println(spec.name() + ": " + seeds.size() + " seeds");
+        System.out.println(spec.name() + ": processed " + jobs.size() + " seed jobs");
       }
     }
+    canonicalize(file);
     summarize(file, output.resolve("summary.csv"));
   }
 
   private static List<String> evaluate(
-      String dataset, Graph graph, List<Set<Integer>> truth, int seed, CandidateScorer scorer, int budget) {
+      String dataset, List<Set<Integer>> truth, int seed, DetectorContext context) {
     Set<Integer> expected = Metrics.truthFor(seed, truth);
     List<String> rows = new ArrayList<>();
     long start = System.nanoTime();
-    rows.add(row(dataset, seed, "FG", Metrics.score(new FGDetector(graph).detect(seed, GAMMA, H), expected), start));
+    rows.add(row(dataset, seed, "FG", Metrics.score(context.fg.detect(seed, GAMMA, H), expected), start));
     start = System.nanoTime();
     rows.add(row(dataset, seed, "BeamLogistic", Metrics.score(
-        new BeamFGDetector(graph, scorer, 2, 5, .10).detect(seed, GAMMA, H), expected), start));
+        context.fullBeam.detect(seed, GAMMA, H), expected), start));
     start = System.nanoTime();
     rows.add(row(dataset, seed, "AdaptiveBeam", Metrics.score(
-        new BeamFGDetector(graph, scorer, 2, 5, .10, budget).detect(seed, GAMMA, H), expected), start));
+        context.adaptiveBeam.detect(seed, GAMMA, H), expected), start));
     return rows;
+  }
+
+  private static String key(String dataset, int seed, String method) {
+    return dataset + "\t" + seed + "\t" + method;
+  }
+
+  private static Set<String> loadCompleted(Path source) throws IOException {
+    Set<String> completed = new HashSet<>();
+    if (!Files.exists(source)) return completed;
+    try (BufferedReader reader = Files.newBufferedReader(source)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] parts = line.split(",", -1);
+        if (parts.length != 7 || parts[0].equals("dataset")) continue;
+        try {
+          completed.add(key(parts[0], Integer.parseInt(parts[1]), parts[2]));
+          Double.parseDouble(parts[6]);
+        } catch (NumberFormatException ignored) {
+          // Ignore an incomplete row left by an interrupted process.
+        }
+      }
+    }
+    return completed;
+  }
+
+  private static void canonicalize(Path source) throws IOException {
+    if (!Files.exists(source) || Files.size(source) == 0) return;
+    LinkedHashMap<String, String> rows = new LinkedHashMap<>();
+    try (BufferedReader reader = Files.newBufferedReader(source)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] parts = line.split(",", -1);
+        if (parts.length != 7 || parts[0].equals("dataset")) continue;
+        try {
+          int seed = Integer.parseInt(parts[1]);
+          for (int i = 3; i < 7; i++) Double.parseDouble(parts[i]);
+          rows.put(key(parts[0], seed, parts[2]), line);
+        } catch (NumberFormatException ignored) {
+          // Ignore malformed or partially flushed rows.
+        }
+      }
+    }
+    Path cleaned = source.resolveSibling(source.getFileName() + ".cleaned");
+    try (BufferedWriter writer = Files.newBufferedWriter(cleaned)) {
+      writer.write("dataset,seed,method,recall,precision,f1,runtime_ms\n");
+      for (String row : rows.values()) writer.write(row + "\n");
+    }
+    Files.move(cleaned, source, StandardCopyOption.REPLACE_EXISTING);
+  }
+
+  private static final class DetectorContext {
+    private final FGDetector fg;
+    private final BeamFGDetector fullBeam;
+    private final BeamFGDetector adaptiveBeam;
+
+    private DetectorContext(Graph graph, CandidateScorer scorer, int budget) {
+      fg = new FGDetector(graph);
+      fullBeam = new BeamFGDetector(graph, scorer, 2, 5, .10);
+      adaptiveBeam = new BeamFGDetector(graph, scorer, 2, 5, .10, budget);
+    }
   }
 
   private static List<Integer> firstSeeds(Graph graph, List<Set<Integer>> truth, int limit) {

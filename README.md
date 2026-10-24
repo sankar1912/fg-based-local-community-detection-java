@@ -358,3 +358,10 @@ search. On the verified five-seed comparison, budget 64 reaches mean F1
 `0.860648` versus `0.861696` for unrestricted beam search, while reducing mean
 runtime from `182.375 ms` to `138.541 ms`. Its output and figure are stored in
 `output/adaptive-beam-results-5/`.
+
+The complete all-eligible-seed adaptive evaluation is stored in
+`output/adaptive-beam-results-full/`. It contains 9,000 per-seed rows across
+LFR6-LFR9, a summary, validation sweep, configuration, and PNG figure. Its
+overall mean F1 is `0.713990` for adaptive beam, `0.711682` for unrestricted
+beam, and `0.621031` for FG. This is the strongest complete result currently
+available, but the LFR6 regression remains documented rather than hidden.

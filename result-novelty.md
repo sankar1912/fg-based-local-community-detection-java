@@ -424,3 +424,39 @@ Artifacts:
 - [`validation-sweep.csv`](output/adaptive-beam-results-5/validation-sweep.csv)
 - [`experiment-config.txt`](output/adaptive-beam-results-5/experiment-config.txt)
 - [`adaptive-beam-vs-fg-f1.png`](output/adaptive-beam-results-5/figures/adaptive-beam-vs-fg-f1.png)
+
+## Complete all-seed adaptive evaluation
+
+The frozen adaptive configuration was then evaluated on every eligible seed
+from LFR6-LFR9: 1,000 + 1,000 + 500 + 500 = 3,000 seeds per method. The
+complete per-seed file contains 9,000 result rows plus its header, and the
+summary and figure were generated after clean process exit.
+
+| Dataset | Seeds | FG F1 | Full beam F1 | Adaptive beam F1 |
+|---|---:|---:|---:|---:|
+| LFR6 | 1,000 | 0.754533 | 0.686188 | 0.686188 |
+| LFR7 | 1,000 | 0.338073 | 0.586587 | 0.593505 |
+| LFR8 | 500 | 0.737770 | 0.851961 | 0.851974 |
+| LFR9 | 500 | 0.803206 | 0.872581 | 0.872581 |
+| **All 3,000 seeds** | **3,000** | **0.621031** | **0.711682** | **0.713990** |
+
+The all-seed adaptive method improves mean F1 over FG by `+0.092959`
+(approximately `14.97%` relative) and over unrestricted beam by `+0.002308`.
+In paired seed-level comparisons against FG, adaptive beam wins 1,253 seeds,
+ties 1,235, and loses 512. The LFR6 regression is important: the improvement
+is not universal, and the full result does not support a claim that the new
+method dominates the paper algorithm on every dataset.
+
+Mean runtime per seed is `1,323.625 ms` for FG, `249.489 ms` for unrestricted
+beam, and `180.392 ms` for adaptive beam. The adaptive algorithm is therefore
+both more accurate overall and approximately `27.7%` faster than unrestricted
+beam in this implementation, while retaining the beam-quality improvement on
+the difficult LFR7-LFR9 cases.
+
+Complete artifacts:
+
+- [`summary.csv`](output/adaptive-beam-results-full/summary.csv)
+- [`per-seed.csv`](output/adaptive-beam-results-full/per-seed.csv)
+- [`validation-sweep.csv`](output/adaptive-beam-results-full/validation-sweep.csv)
+- [`experiment-config.txt`](output/adaptive-beam-results-full/experiment-config.txt)
+- [`adaptive-beam-vs-fg-f1.png`](output/adaptive-beam-results-full/figures/adaptive-beam-vs-fg-f1.png)
