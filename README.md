@@ -206,6 +206,9 @@ folded candidate are represented by local structural features, and a learned
 compatibility score reranks candidates during the modularity stage. The
 original FG method remains unchanged as the baseline.
 
+The consolidated results, tables, figure locations, model comparison, and
+full-run status are in [result-novelty.md](result-novelty.md).
+
 Run a fast held-out experiment:
 
 ```cmd
