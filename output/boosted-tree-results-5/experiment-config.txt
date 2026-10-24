@@ -1,0 +1,9 @@
+training=LFR1-LFR5
+validation=LFR3-LFR5 first five eligible seeds
+held_out=LFR6-LFR9
+selected_weight=0.2
+selected_slack=0.0
+selected_threshold=0.6
+validation_f1=0.28034549513387697
+model=gradient-boosted-stumps
+seed_limit=5

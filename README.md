@@ -83,6 +83,9 @@ and detected network structure.
 | `PairwiseCandidateScorer.java` | Learns positive-versus-negative candidate ordering from the same seed query. |
 | `PairwiseRankingExperiment.java` | Tunes and evaluates the pairwise ranking novelty against FG and pointwise logistic selection. |
 | `PairwiseRankingVisualization.java` | Generates the pairwise-versus-FG F1 figure. |
+| `GradientBoostedCandidateScorer.java` | Learns nonlinear candidate compatibility with deterministic boosted decision stumps. |
+| `BoostedTreeExperiment.java` | Tunes and evaluates the nonlinear boosted-stump selector. |
+| `BoostedTreeVisualization.java` | Generates the boosted-stump comparison figure. |
 
 ## Build
 

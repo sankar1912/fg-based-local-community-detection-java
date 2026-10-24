@@ -240,6 +240,44 @@ useful but not yet successful direction for correcting the base paper's greedy
 candidate ordering. The all-eligible-seed run is still required before making
 a final performance claim.
 
+## Nonlinear algorithm: gradient-boosted decision stumps
+
+The project also implements `GradientBoostedCandidateScorer`, a deterministic
+shallow gradient-boosting model over the nine candidate features. It can learn
+nonlinear threshold interactions that a linear logistic scorer cannot, while
+remaining small enough to inspect and reproduce in Java.
+
+Source: [`output/boosted-tree-results-5/summary.csv`](output/boosted-tree-results-5/summary.csv)
+
+The model was trained on LFR1-LFR2, tuned on the first five eligible seeds of
+LFR3-LFR5, retrained on LFR1-LFR5, and evaluated on five held-out seeds from
+each LFR6-LFR9 graph.
+
+| Dataset | FG F1 | Pointwise logistic F1 | Boosted-stump F1 |
+|---|---:|---:|---:|
+| LFR6 | 0.8622 | 0.8622 | 0.8622 |
+| LFR7 | 0.2679 | 0.2679 | 0.2679 |
+| LFR8 | 0.5935 | 0.6034 | 0.5935 |
+| LFR9 | 0.6826 | 0.6826 | 0.6826 |
+| **Mean** | **0.6016** | **0.6040** | **0.6016** |
+
+The boosted model produced zero mean improvement over FG in this frozen
+five-seed evaluation. This suggests that the observed limitation is not simply
+linear-model capacity. It is more likely connected to the candidate labels,
+the local seed-only training examples, the validation split, or the base
+algorithm's irreversible greedy expansion decisions.
+
+Artifacts:
+
+- [`experiment-config.txt`](output/boosted-tree-results-5/experiment-config.txt)
+- [`validation-sweep.csv`](output/boosted-tree-results-5/validation-sweep.csv)
+- [`gradient-boosted-model.txt`](output/boosted-tree-results-5/gradient-boosted-model.txt)
+- [`per-seed.csv`](output/boosted-tree-results-5/per-seed.csv)
+- [`summary.csv`](output/boosted-tree-results-5/summary.csv)
+- [`boosted-vs-fg-f1.png`](output/boosted-tree-results-5/figures/boosted-vs-fg-f1.png)
+
+![Boosted-stump comparison](output/boosted-tree-results-5/figures/boosted-vs-fg-f1.png)
+
 ## Reproducible commands
 
 Compile and run tests:
