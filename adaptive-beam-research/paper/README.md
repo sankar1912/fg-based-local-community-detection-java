@@ -20,6 +20,18 @@ by this Java implementation and are explicitly distinguished from the paper's
 published values because the paper's original graph realizations and random
 seeds are not available here.
 
+## Exported manuscript files
+
+- `adaptive_beam_fg_manuscript.docx` - editable Word manuscript with headings,
+  equations, tables, figure, references, and page numbering.
+- `adaptive_beam_fg_manuscript.pdf` - fixed-layout PDF export of the same
+  manuscript for review and sharing.
+
+The wording in these files is original to this project. The supplied folded-
+subgraph paper is cited as the baseline source; its prose and reported tables
+are not reproduced. Replace the placeholder author and affiliation block
+before submission.
+
 ## Compile locally
 
 Install a LaTeX distribution containing `IEEEtran.cls`, then run from the
