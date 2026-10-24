@@ -6,6 +6,7 @@ import java.util.*;
 public final class ModularityExpansion {
   private final Graph g;
   private final Folding folding;
+  private final Map<FoldKey, Set<Integer>> foldedCache = new HashMap<>();
 
   public ModularityExpansion(Graph g) {
     this.g = g;
@@ -19,10 +20,11 @@ public final class ModularityExpansion {
       if (a.isEmpty()) return c;
       double best = Double.NEGATIVE_INFINITY;
       Set<Integer> bf = null;
+      int ein = internal(c), eout = external(c);
       for (int v : a) {
-        Set<Integer> f = folding.build(v, gamma);
+        Set<Integer> f = folded(v, gamma);
         if (f.stream().noneMatch(x -> !c.contains(x))) continue;
-        double d = delta(c, a, f);
+        double d = delta(c, a, f, ein, eout);
         if (d > best) {
           best = d;
           bf = f;
@@ -73,4 +75,10 @@ public final class ModularityExpansion {
     for (int u : c) for (int v : g.neighbors(u)) if (!c.contains(v)) a.add(v);
     return a;
   }
+
+  private Set<Integer> folded(int start, double gamma) {
+    return foldedCache.computeIfAbsent(new FoldKey(start, gamma), key -> folding.build(start, gamma));
+  }
+
+  private record FoldKey(int start, double gamma) {}
 }

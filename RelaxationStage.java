@@ -7,6 +7,7 @@ public final class RelaxationStage {
   private final Graph g;
   private final Folding folding;
   private final double beta;
+  private final Map<FoldKey, Set<Integer>> foldedCache = new HashMap<>();
 
   public RelaxationStage(Graph g) {
     this(g, .5);
@@ -22,7 +23,7 @@ public final class RelaxationStage {
     Set<Integer> c = new LinkedHashSet<>(initial), a = alternative(c), bf = null;
     double best = Double.NEGATIVE_INFINITY;
     for (int v : a) {
-      Set<Integer> f = folding.build(v, gamma);
+      Set<Integer> f = folded(v, gamma);
       double s = f1(f, c) + beta * f2(f, c);
       if (s > best) {
         best = s;
@@ -51,4 +52,10 @@ public final class RelaxationStage {
     for (int u : c) for (int v : g.neighbors(u)) if (!c.contains(v)) a.add(v);
     return a;
   }
+
+  private Set<Integer> folded(int start, double gamma) {
+    return foldedCache.computeIfAbsent(new FoldKey(start, gamma), key -> folding.build(start, gamma));
+  }
+
+  private record FoldKey(int start, double gamma) {}
 }
