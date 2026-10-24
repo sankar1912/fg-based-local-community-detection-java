@@ -3,8 +3,8 @@ package foldedsubgraph;
 import java.util.*;
 
 /**
- * Novel candidate-selection stage. The original folded subgraph, M equation,
- * and stopping safeguards remain intact; only candidate ranking changes.
+ * Novel candidate-selection stage. The original folded subgraph, M equation, and stopping
+ * safeguards remain intact; only candidate ranking changes.
  */
 public final class HybridModularityExpansion {
   private final Graph graph;
@@ -14,6 +14,7 @@ public final class HybridModularityExpansion {
   private final double membershipWeight;
   private final double externalPenalty;
   private final double minimumMembership;
+  private final double modularitySlack;
   private final Map<Integer, Set<Integer>> foldedCache = new HashMap<>();
 
   public HybridModularityExpansion(
@@ -21,7 +22,8 @@ public final class HybridModularityExpansion {
       LogisticCandidateScorer scorer,
       double membershipWeight,
       double externalPenalty,
-      double minimumMembership) {
+      double minimumMembership,
+      double modularitySlack) {
     this.graph = graph;
     this.folding = new Folding(graph);
     this.modularity = new ModularityExpansion(graph);
@@ -29,6 +31,7 @@ public final class HybridModularityExpansion {
     this.membershipWeight = membershipWeight;
     this.externalPenalty = externalPenalty;
     this.minimumMembership = minimumMembership;
+    this.modularitySlack = modularitySlack;
   }
 
   public Set<Integer> expand(Set<Integer> initial, double gamma) {
@@ -40,12 +43,12 @@ public final class HybridModularityExpansion {
 
       List<Candidate> candidates = new ArrayList<>();
       for (int candidate : alternatives) {
-        Set<Integer> folded = foldedCache.computeIfAbsent(candidate,
-            value -> folding.build(value, gamma));
+        Set<Integer> folded =
+            foldedCache.computeIfAbsent(candidate, value -> folding.build(value, gamma));
         if (folded.stream().noneMatch(node -> !community.contains(node))) continue;
         double delta = modularity.delta(community, alternatives, folded);
-        double[] features = CandidateFeatures.extract(
-            graph, community, alternatives, folded, gamma);
+        double[] features =
+            CandidateFeatures.extract(graph, community, alternatives, folded, gamma);
         double probability = scorer.probability(features);
         candidates.add(new Candidate(folded, delta, probability, features[5]));
       }
@@ -55,14 +58,16 @@ public final class HybridModularityExpansion {
       double maximumDelta = candidates.stream().mapToDouble(Candidate::delta).max().orElse(0.0);
       Candidate best = null;
       double bestScore = Double.NEGATIVE_INFINITY;
+      double bestBaseDelta = candidates.stream().mapToDouble(Candidate::delta).max().orElse(0.0);
       for (Candidate candidate : candidates) {
         double normalizedDelta = normalize(candidate.delta(), minimumDelta, maximumDelta);
-        double score = (1.0 - membershipWeight) * normalizedDelta
-            + membershipWeight * candidate.probability()
-            - externalPenalty * candidate.externalRatio();
-        boolean safe = candidate.delta() >= 0.0
-            || candidate.probability() >= minimumMembership;
-        if (safe && score > bestScore) {
+        double score =
+            (1.0 - membershipWeight) * normalizedDelta
+                + membershipWeight * candidate.probability()
+                - externalPenalty * candidate.externalRatio();
+        boolean safe = candidate.delta() >= 0.0 || candidate.probability() >= minimumMembership;
+        boolean nearBase = candidate.delta() >= bestBaseDelta - modularitySlack;
+        if (safe && nearBase && score > bestScore) {
           best = candidate;
           bestScore = score;
         }
@@ -88,6 +93,6 @@ public final class HybridModularityExpansion {
     return (value - minimum) / (maximum - minimum);
   }
 
-  private record Candidate(Set<Integer> folded, double delta, double probability,
-                           double externalRatio) {}
+  private record Candidate(
+      Set<Integer> folded, double delta, double probability, double externalRatio) {}
 }

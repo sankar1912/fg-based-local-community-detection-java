@@ -14,11 +14,13 @@ public final class HybridFGDetector {
       LogisticCandidateScorer scorer,
       double membershipWeight,
       double externalPenalty,
-      double minimumMembership) {
+      double minimumMembership,
+      double modularitySlack) {
     this.graph = graph;
     folding = new FoldingCommunity(graph);
-    modularity = new HybridModularityExpansion(
-        graph, scorer, membershipWeight, externalPenalty, minimumMembership);
+    modularity =
+        new HybridModularityExpansion(
+            graph, scorer, membershipWeight, externalPenalty, minimumMembership, modularitySlack);
     relaxation = new RelaxationStage(graph);
   }
 

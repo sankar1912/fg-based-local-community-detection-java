@@ -76,6 +76,7 @@ h                  = 1.0
 w                  = 0.50
 lambda             = 0.10
 minimum_membership = 0.60
+modularity_slack   = 0.05
 ```
 
 The hybrid may accept a non-positive modularity candidate only when its learned
@@ -134,7 +135,7 @@ java -cp out foldedsubgraph.NoveltyExperiment ^
 Optional parameters are:
 
 ```text
-NoveltyExperiment data output seedLimit membershipWeight externalPenalty minimumMembership
+NoveltyExperiment data output seedLimit membershipWeight externalPenalty minimumMembership modularitySlack
 ```
 
 The command stores:
@@ -196,6 +197,67 @@ validated claim. It suggests that the learned candidate score can improve one
 moderately difficult graph, but it does not yet demonstrate general
 improvement. The full held-out command with seed limit `0` is required before
 making a publication claim.
+
+## Five-seed stress result
+
+The same tuned configuration was then run on five seeds per held-out dataset.
+This stronger run showed mixed behavior:
+
+| Dataset | FG F1 | Novelty F1 | Difference |
+|---|---:|---:|---:|
+| LFR6 | 0.8622 | 0.7129 | -0.1493 |
+| LFR7 | 0.2679 | 0.2679 | 0.0000 |
+| LFR8 | 0.5935 | 0.7026 | +0.1090 |
+| LFR9 | 0.6826 | 0.6465 | -0.0361 |
+
+Therefore the current novelty is **not yet a general improvement** over FG. It
+helps LFR8, but the learned candidate reranking can select poor candidates on
+LFR6 and LFR9. This result is stored in
+`output/novelty-tuned-results-5/summary.csv` and is more important than the
+one-seed result because it exposes the instability.
+
+The next required refinement is a safe-gating rule: the learned score should
+only override the base modularity candidate when its compatibility advantage is
+large enough and its modularity gain is within a configurable slack of the
+base candidate. This preserves FG's strong decisions while allowing learned
+reranking at ambiguous boundaries.
+
+## Safe-gated novelty result
+
+The safe-gating refinement is implemented in `HybridModularityExpansion`. For
+each expansion step, the hybrid selector first identifies the best candidate
+under the paper's original modularity gain. A learned candidate can replace it
+only when its modularity gain is no worse than the base gain minus
+`modularity_slack`, and it either has non-negative modularity gain or reaches
+the configured membership threshold. This makes the novelty conservative by
+construction: it cannot freely replace a clearly stronger FG decision.
+
+The selected configuration was trained on LFR1-LFR5 and evaluated on five
+seeds from each held-out graph LFR6-LFR9:
+
+```text
+membership_weight = 0.20
+external_penalty  = 0.00
+minimum_membership = 0.60
+modularity_slack   = 0.05
+```
+
+The stored artifact is `output/novelty-safe-results-5/summary.csv`:
+
+| Dataset | FG F1 | Safe novelty F1 | Difference |
+|---|---:|---:|---:|
+| LFR6 | 0.8622 | 0.8622 | +0.0000 |
+| LFR7 | 0.2679 | 0.2679 | +0.0000 |
+| LFR8 | 0.5935 | 0.7026 | +0.1090 |
+| LFR9 | 0.6826 | 0.6465 | -0.0361 |
+
+Across the four held-out datasets, the unweighted mean F1 changes from about
+0.6016 to 0.6198, an absolute improvement of about 0.0182. This is a useful
+engineering result, but it is not yet a claim of universal superiority: LFR9
+still regresses, the evaluation uses five seeds rather than every possible
+seed, and paired statistical confidence intervals are still needed for a
+publication-quality conclusion. The complete per-seed metrics, model, config,
+CSV summaries, and PNG figures are retained under the output directory.
 
 ## How to establish improvement
 

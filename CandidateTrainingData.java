@@ -17,10 +17,9 @@ public final class CandidateTrainingData {
       Set<Integer> alternative = alternatives(graph, community);
       Set<Integer> truth = Metrics.truthFor(seed, truths);
       for (int candidate : alternative) {
-        Set<Integer> folded = foldedCache.computeIfAbsent(candidate,
-            value -> folding.build(value, gamma));
-        double[] features = CandidateFeatures.extract(
-            graph, community, alternative, folded, gamma);
+        Set<Integer> folded =
+            foldedCache.computeIfAbsent(candidate, value -> folding.build(value, gamma));
+        double[] features = CandidateFeatures.extract(graph, community, alternative, folded, gamma);
         int inTruth = 0;
         for (int node : folded) if (truth.contains(node)) inTruth++;
         int label = inTruth >= Math.ceil(folded.size() / 2.0) ? 1 : 0;

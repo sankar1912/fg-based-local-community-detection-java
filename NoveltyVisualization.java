@@ -30,8 +30,13 @@ public final class NoveltyVisualization {
       reader.readLine();
       while ((line = reader.readLine()) != null) {
         String[] p = line.split(",");
-        rows.add(new Row(p[0], p[1], Double.parseDouble(p[3]),
-            Double.parseDouble(p[4]), Double.parseDouble(p[5])));
+        rows.add(
+            new Row(
+                p[0],
+                p[1],
+                Double.parseDouble(p[3]),
+                Double.parseDouble(p[4]),
+                Double.parseDouble(p[5])));
       }
     }
     return rows;
@@ -41,7 +46,8 @@ public final class NoveltyVisualization {
     chart(file, rows, false);
   }
 
-  private static void chart(Path file, java.util.List<Row> rows, boolean onlyF1) throws IOException {
+  private static void chart(Path file, java.util.List<Row> rows, boolean onlyF1)
+      throws IOException {
     String[] datasets = {"LFR6", "LFR7", "LFR8", "LFR9"};
     int width = onlyF1 ? 1000 : 1250;
     int height = 700;
@@ -67,15 +73,16 @@ public final class NoveltyVisualization {
     }
     int groupWidth = plotWidth / datasets.length;
     int seriesCount = onlyF1 ? 1 : 3;
-    String[] names = onlyF1 ? new String[] {"F-score"}
-        : new String[] {"Recall", "Precision", "F-score"};
+    String[] names =
+        onlyF1 ? new String[] {"F-score"} : new String[] {"Recall", "Precision", "F-score"};
     Color[] colors = {BASE, NOVELTY};
     for (int i = 0; i < datasets.length; i++) {
       int baseX = left + i * groupWidth + groupWidth / 5;
       for (int method = 0; method < 2; method++) {
         Row row = find(rows, datasets[i], method == 0 ? "FG" : "Novelty");
         for (int metric = 0; metric < seriesCount; metric++) {
-          double value = onlyF1 ? row.f1 : metric == 0 ? row.recall : metric == 1 ? row.precision : row.f1;
+          double value =
+              onlyF1 ? row.f1 : metric == 0 ? row.recall : metric == 1 ? row.precision : row.f1;
           int x = baseX + method * 48 + metric * 13;
           int barHeight = (int) Math.round(value * plotHeight);
           g.setColor(colors[method]);
@@ -93,14 +100,19 @@ public final class NoveltyVisualization {
     g.fillRect(left + 85, 55, 18, 12);
     g.setColor(INK);
     g.drawString("Novelty", left + 110, 66);
-    g.drawString(onlyF1 ? "Dataset" : "Each dataset: Recall, Precision, F-score", width / 2 - 100, height - 25);
+    g.drawString(
+        onlyF1 ? "Dataset" : "Each dataset: Recall, Precision, F-score",
+        width / 2 - 100,
+        height - 25);
     g.dispose();
     ImageIO.write(image, "png", file.toFile());
   }
 
   private static Row find(java.util.List<Row> rows, String dataset, String method) {
-    return rows.stream().filter(row -> row.dataset.equals(dataset) && row.method.equals(method))
-        .findFirst().orElseThrow();
+    return rows.stream()
+        .filter(row -> row.dataset.equals(dataset) && row.method.equals(method))
+        .findFirst()
+        .orElseThrow();
   }
 
   private record Row(String dataset, String method, double recall, double precision, double f1) {}

@@ -26,13 +26,22 @@ public final class NoveltyParameterSweep {
         for (double penalty : penalties) {
           for (double threshold : thresholds) {
             double f1 = evaluate(data, scorer, limit, weight, penalty, threshold);
-            writer.write(String.format(Locale.ROOT, "%.2f,%.2f,%.2f,%.8f%n",
-                weight, penalty, threshold, f1));
+            writer.write(
+                String.format(
+                    Locale.ROOT, "%.2f,%.2f,%.2f,%.8f%n", weight, penalty, threshold, f1));
             if (f1 > bestF1) {
               bestF1 = f1;
-              best = String.format(Locale.ROOT,
-                  "membership_weight=%.2f\nexternal_penalty=%.2f\nminimum_membership=%.2f\nvalidation_f1=%.8f\n",
-                  weight, penalty, threshold, f1);
+              best =
+                  String.format(
+                      Locale.ROOT,
+                      "membership_weight=%.2f\n"
+                          + "external_penalty=%.2f\n"
+                          + "minimum_membership=%.2f\n"
+                          + "validation_f1=%.8f\n",
+                      weight,
+                      penalty,
+                      threshold,
+                      f1);
             }
           }
         }
@@ -48,8 +57,8 @@ public final class NoveltyParameterSweep {
     for (int index = 0; index < 2; index++) {
       LfrSpec spec = LfrSpec.paperTable()[index];
       Graph graph = DatasetReader.edgeList(data.resolve(spec.name() + ".edgelist"), false);
-      List<Set<Integer>> truth = DatasetReader.communities(
-          data.resolve(spec.name() + ".truth"), false);
+      List<Set<Integer>> truth =
+          DatasetReader.communities(data.resolve(spec.name() + ".truth"), false);
       examples.addAll(CandidateTrainingData.collect(graph, truth, GAMMA));
     }
     return LogisticCandidateScorer.train(examples, 500, .08, .001);
@@ -61,19 +70,21 @@ public final class NoveltyParameterSweep {
       int limit,
       double weight,
       double penalty,
-      double threshold) throws IOException {
+      double threshold)
+      throws IOException {
     double total = 0.0;
     int count = 0;
     for (int index = 2; index < 5; index++) {
       LfrSpec spec = LfrSpec.paperTable()[index];
       Graph graph = DatasetReader.edgeList(data.resolve(spec.name() + ".edgelist"), false);
-      List<Set<Integer>> truth = DatasetReader.communities(
-          data.resolve(spec.name() + ".truth"), false);
-      HybridFGDetector hybrid = new HybridFGDetector(graph, scorer, weight, penalty, threshold);
+      List<Set<Integer>> truth =
+          DatasetReader.communities(data.resolve(spec.name() + ".truth"), false);
+      HybridFGDetector hybrid =
+          new HybridFGDetector(graph, scorer, weight, penalty, threshold, .05);
       int seeds = limit <= 0 ? graph.size() : Math.min(limit, graph.size());
       for (int seed = 0; seed < seeds; seed++) {
-        Metrics.Score score = Metrics.score(
-            hybrid.detect(seed, GAMMA, H), Metrics.truthFor(seed, truth));
+        Metrics.Score score =
+            Metrics.score(hybrid.detect(seed, GAMMA, H), Metrics.truthFor(seed, truth));
         total += score.f1();
         count++;
       }

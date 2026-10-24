@@ -8,5 +8,3 @@ tmp/
 *.iml
 .vscode/
 
-# Incomplete long-running exploratory run
-output/novelty-tuned-results-5/

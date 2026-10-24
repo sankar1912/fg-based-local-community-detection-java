@@ -226,6 +226,12 @@ executed one-seed smoke experiment was equal to FG on LFR6, LFR7, and LFR9 and
 worse on LFR8; it must not be described as an improvement until the held-out
 tuning protocol in `novelty.md` produces a consistent gain.
 
+The safe-gated five-seed comparison is stored in
+`output/novelty-safe-results-5/`. It preserves the FG result on LFR6 and LFR7,
+improves LFR8 from F1 0.5935 to 0.7026, and regresses LFR9 from 0.6826 to
+0.6465. The aggregate mean improves modestly, but the result is mixed and
+should be reported with statistical uncertainty.
+
 Tune the novelty parameters on validation graphs:
 
 ```cmd
@@ -234,7 +240,12 @@ java -cp out foldedsubgraph.NoveltyParameterSweep ^
 ```
 
 This stores `tuning.csv`, `best-config.txt`, and the validation scorer. Use the
-selected values as the final three arguments to `NoveltyExperiment`.
+selected values plus a modularity slack of `0.05` as the final four arguments
+to `NoveltyExperiment`. The full optional argument order is:
+
+```text
+seedLimit membershipWeight externalPenalty minimumMembership modularitySlack
+```
 
 ## Input formats
 

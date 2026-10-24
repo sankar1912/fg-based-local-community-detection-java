@@ -3,8 +3,8 @@ package foldedsubgraph;
 import java.util.*;
 
 /**
- * Local, prediction-time features for a folded candidate F and current
- * community C. No ground-truth information is used here.
+ * Local, prediction-time features for a folded candidate F and current community C. No ground-truth
+ * information is used here.
  */
 public final class CandidateFeatures {
   public static final String[] NAMES = {
@@ -42,9 +42,8 @@ public final class CandidateFeatures {
     double externalRatio = totalDegree == 0 ? 0.0 : external / (double) totalDegree;
     double meanDegree = folded.isEmpty() ? 0.0 : totalDegree / (double) folded.size();
     double internalRatio = totalDegree == 0 ? 0.0 : internal / (double) totalDegree;
-    double communityOverlap = community.isEmpty()
-        ? 0.0
-        : intersectionSize(folded, community) / (double) community.size();
+    double communityOverlap =
+        community.isEmpty() ? 0.0 : intersectionSize(folded, community) / (double) community.size();
 
     return new double[] {
       density,
