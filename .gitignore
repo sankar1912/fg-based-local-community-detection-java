@@ -8,3 +8,9 @@ tmp/
 *.iml
 .vscode/
 
+# Incomplete/intermediate rigorous runs; the verified smoke artifact is committed.
+output/rigorous-evaluation/
+output/rigorous-smoke/
+output/rigorous-smoke2/
+output/rigorous-smoke-final/
+

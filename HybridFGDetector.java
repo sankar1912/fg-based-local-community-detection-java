@@ -11,7 +11,7 @@ public final class HybridFGDetector {
 
   public HybridFGDetector(
       Graph graph,
-      LogisticCandidateScorer scorer,
+      CandidateScorer scorer,
       double membershipWeight,
       double externalPenalty,
       double minimumMembership,
@@ -39,6 +39,14 @@ public final class HybridFGDetector {
       previousAfterRelaxation = community.size();
     }
     return community;
+  }
+
+  public List<HybridModularityExpansion.Decision> decisions() {
+    return modularity.decisions();
+  }
+
+  public double selectedGainTotal() {
+    return modularity.selectedGainTotal();
   }
 
   private boolean isClosed(Set<Integer> community) {

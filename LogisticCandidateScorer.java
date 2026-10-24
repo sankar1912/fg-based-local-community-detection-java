@@ -5,7 +5,7 @@ import java.nio.file.*;
 import java.util.*;
 
 /** A calibrated logistic compatibility model over local candidate features. */
-public final class LogisticCandidateScorer {
+public final class LogisticCandidateScorer implements CandidateScorer {
   private final double[] mean;
   private final double[] scale;
   private final double[] weights;
@@ -63,6 +63,11 @@ public final class LogisticCandidateScorer {
 
   public double probability(double[] features) {
     return sigmoid(dot(weights, standardize(features, mean, scale)) + bias);
+  }
+
+  @Override
+  public String modelType() {
+    return "logistic-regression";
   }
 
   public void save(Path file) throws IOException {

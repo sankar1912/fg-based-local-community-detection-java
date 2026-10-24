@@ -10,16 +10,18 @@ public final class HybridModularityExpansion {
   private final Graph graph;
   private final Folding folding;
   private final ModularityExpansion modularity;
-  private final LogisticCandidateScorer scorer;
+  private final CandidateScorer scorer;
   private final double membershipWeight;
   private final double externalPenalty;
   private final double minimumMembership;
   private final double modularitySlack;
   private final Map<Integer, Set<Integer>> foldedCache = new HashMap<>();
+  private final List<Decision> decisions = new ArrayList<>();
+  private double selectedGainTotal;
 
   public HybridModularityExpansion(
       Graph graph,
-      LogisticCandidateScorer scorer,
+      CandidateScorer scorer,
       double membershipWeight,
       double externalPenalty,
       double minimumMembership,
@@ -56,26 +58,60 @@ public final class HybridModularityExpansion {
 
       double minimumDelta = candidates.stream().mapToDouble(Candidate::delta).min().orElse(0.0);
       double maximumDelta = candidates.stream().mapToDouble(Candidate::delta).max().orElse(0.0);
-      Candidate best = null;
+      Candidate base =
+          candidates.stream().max(Comparator.comparingDouble(Candidate::delta)).orElse(null);
+      Candidate best = base;
       double bestScore = Double.NEGATIVE_INFINITY;
       double bestBaseDelta = candidates.stream().mapToDouble(Candidate::delta).max().orElse(0.0);
+      if (!Double.isFinite(bestBaseDelta) || bestBaseDelta < 0.0) return community;
       for (Candidate candidate : candidates) {
         double normalizedDelta = normalize(candidate.delta(), minimumDelta, maximumDelta);
         double score =
             (1.0 - membershipWeight) * normalizedDelta
                 + membershipWeight * candidate.probability()
                 - externalPenalty * candidate.externalRatio();
-        boolean safe = candidate.delta() >= 0.0 || candidate.probability() >= minimumMembership;
+        boolean safe =
+            Double.isFinite(candidate.probability())
+                && candidate.probability() >= minimumMembership;
         boolean nearBase = candidate.delta() >= bestBaseDelta - modularitySlack;
         if (safe && nearBase && score > bestScore) {
           best = candidate;
           bestScore = score;
         }
       }
-      if (best == null) return community;
+      if (best == null) best = base;
+      boolean overridden = base != best;
+      String reason = overridden ? "accepted_safe_override" : "fg_candidate_retained";
+      decisions.add(
+          new Decision(
+              candidateId(base.folded()),
+              candidateId(best.folded()),
+              base.delta(),
+              best.delta(),
+              best.probability(),
+              modularitySlack,
+              minimumMembership,
+              overridden,
+              reason));
+      selectedGainTotal += best.delta();
       community.addAll(best.folded());
     }
     return community;
+  }
+
+  public List<Decision> decisions() {
+    return List.copyOf(decisions);
+  }
+
+  public double selectedGainTotal() {
+    return selectedGainTotal;
+  }
+
+  private static String candidateId(Set<Integer> candidate) {
+    return candidate.stream()
+        .sorted()
+        .map(String::valueOf)
+        .collect(java.util.stream.Collectors.joining("|"));
   }
 
   private Set<Integer> alternatives(Set<Integer> community) {
@@ -95,4 +131,15 @@ public final class HybridModularityExpansion {
 
   private record Candidate(
       Set<Integer> folded, double delta, double probability, double externalRatio) {}
+
+  public record Decision(
+      String originalFgCandidate,
+      String proposedCandidate,
+      double originalDelta,
+      double proposedDelta,
+      double compatibility,
+      double slack,
+      double threshold,
+      boolean accepted,
+      String reason) {}
 }

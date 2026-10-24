@@ -247,6 +247,42 @@ to `NoveltyExperiment`. The full optional argument order is:
 seedLimit membershipWeight externalPenalty minimumMembership modularitySlack
 ```
 
+## Rigorous held-out evaluation
+
+`RigorousEvaluation.java` is the reproducible evaluator for the research claim.
+It keeps the original `FGDetector` baseline, tunes only on LFR3-LFR5 after
+training on LFR1-LFR2, freezes the selected configuration, retrains on
+LFR1-LFR5, and evaluates LFR6-LFR9. The comparison includes logistic
+regression, a one-hidden-layer MLP, and a genuine Bernoulli-Bernoulli RBM
+trained with CD-1. The RBM is not a label applied to the logistic model.
+
+Run a quick format/execution check with one eligible seed per held-out graph:
+
+```cmd
+java -cp out foldedsubgraph.RigorousEvaluation ^
+  datasets/generated-lfr output/rigorous-smoke 1
+```
+
+Run the complete eligible-seed experiment without the optional seed limit:
+
+```cmd
+java -cp out foldedsubgraph.RigorousEvaluation ^
+  datasets/generated-lfr output/rigorous-evaluation
+```
+
+The evaluator is restartable: completed successful dataset/seed/model rows in
+`per_seed_results.csv` are skipped. It writes paired rows, validation sweep,
+selected configuration, manifest, override audit, candidate-ranking metrics,
+bootstrap confidence intervals, paired sign-permutation tests with Holm
+adjustment, model comparison, report, and five PNG figures. A run using a
+positive third argument is a smoke run and must not be reported as the final
+all-seed experiment.
+
+The verified smoke artifact in this workspace is
+`output/rigorous-smoke-final2/`. It contains one eligible seed from each test
+graph and validates execution and file formats only. The no-limit command above
+is the only command that can produce final all-eligible-seed evidence.
+
 ## Input formats
 
 ### Edge list
