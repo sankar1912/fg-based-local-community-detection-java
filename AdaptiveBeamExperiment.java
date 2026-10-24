@@ -251,6 +251,8 @@ public final class AdaptiveBeamExperiment {
     g.setColor(Color.BLACK); g.setFont(new Font("SansSerif", Font.BOLD, 20));
     g.drawString("FG, full beam, and adaptive-budget beam F1", 100, 45);
     g.drawLine(90, 540, 1000, 540); g.drawLine(90, 80, 90, 540);
+    g.setFont(new Font("SansSerif", Font.PLAIN, 13));
+    g.drawString("1.0", 55, 85); g.drawString("0.5", 55, 340); g.drawString("0.0", 55, 545);
     Color[] palette = {Color.BLUE, Color.GREEN.darker(), Color.ORANGE.darker()};
     try (BufferedReader reader = Files.newBufferedReader(summary)) {
       String line;
@@ -260,7 +262,14 @@ public final class AdaptiveBeamExperiment {
         int method = colors.get(p[1]); int x = 120 + (dataset - 6) * 220 + method * 55;
         int height = (int) (Double.parseDouble(p[5]) * 400);
         g.setColor(palette[method]); g.fillRect(x, 540 - height, 42, height);
+        g.setColor(Color.BLACK); g.drawString(p[0], 120 + (dataset - 6) * 220, 570);
       }
+    }
+    g.setFont(new Font("SansSerif", Font.PLAIN, 13));
+    String[] labels = {"FG", "Full beam", "Adaptive budget"};
+    for (int i = 0; i < labels.length; i++) {
+      g.setColor(palette[i]); g.fillRect(760, 90 + i * 24, 18, 18);
+      g.setColor(Color.BLACK); g.drawString(labels[i], 785, 104 + i * 24);
     }
     Files.createDirectories(target.getParent()); ImageIO.write(image, "png", target.toFile());
     g.dispose();
