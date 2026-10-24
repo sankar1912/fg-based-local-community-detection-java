@@ -1,0 +1,4 @@
+membership_weight=0.20
+external_penalty=0.00
+minimum_membership=0.60
+validation_f1=0.30510536

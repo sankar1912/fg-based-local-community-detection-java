@@ -1,0 +1,114 @@
+package foldedsubgraph;
+
+import java.util.*;
+
+/** Beam-search replacement for the irreversible greedy modularity expansion. */
+public final class BeamModularityExpansion {
+  private final Graph graph;
+  private final Folding folding;
+  private final ModularityExpansion modularity;
+  private final CandidateScorer scorer;
+  private final int beamWidth;
+  private final int maxDepth;
+  private final double learnedWeight;
+  private final int candidateBudget;
+  private final Map<Integer, Set<Integer>> foldedCache = new HashMap<>();
+
+  public BeamModularityExpansion(
+      Graph graph, CandidateScorer scorer, int beamWidth, int maxDepth, double learnedWeight) {
+    this(graph, scorer, beamWidth, maxDepth, learnedWeight, Integer.MAX_VALUE);
+  }
+
+  public BeamModularityExpansion(
+      Graph graph,
+      CandidateScorer scorer,
+      int beamWidth,
+      int maxDepth,
+      double learnedWeight,
+      int candidateBudget) {
+    this.graph = graph;
+    this.folding = new Folding(graph);
+    this.modularity = new ModularityExpansion(graph);
+    this.scorer = scorer;
+    this.beamWidth = beamWidth;
+    this.maxDepth = maxDepth;
+    this.learnedWeight = learnedWeight;
+    if (candidateBudget < 1) throw new IllegalArgumentException("candidateBudget must be positive");
+    this.candidateBudget = candidateBudget;
+  }
+
+  public Set<Integer> expand(Set<Integer> initial, double gamma) {
+    List<State> beam = List.of(new State(new LinkedHashSet<>(initial), 0));
+    State best = beam.get(0);
+    for (int depth = 0; depth < maxDepth; depth++) {
+      List<State> next = new ArrayList<>();
+      for (State state : beam) {
+        Set<Integer> alternatives = alternatives(state.community());
+        List<Integer> candidates = prioritized(alternatives, state.community());
+        int internal = modularity.internal(state.community());
+        int external = modularity.external(state.community());
+        for (int candidate : candidates) {
+          Set<Integer> folded =
+              foldedCache.computeIfAbsent(candidate, v -> folding.build(v, gamma));
+          if (folded.stream().noneMatch(node -> !state.community().contains(node))) continue;
+          double delta =
+              modularity.delta(state.community(), alternatives, folded, internal, external);
+          if (!Double.isFinite(delta) || delta < 0) continue;
+          double[] features =
+              CandidateFeatures.extract(
+                  graph, state.community(), alternatives, folded, gamma, delta);
+          double probability = scorer == null ? .5 : scorer.probability(features);
+          if (!Double.isFinite(probability)) probability = .5;
+          Set<Integer> community = new LinkedHashSet<>(state.community());
+          community.addAll(folded);
+          next.add(new State(community, state.totalGain() + delta + learnedWeight * probability));
+        }
+      }
+      if (next.isEmpty()) break;
+      next.sort(
+          Comparator.comparingDouble(State::totalGain)
+              .reversed()
+              .thenComparingInt(s -> s.community().size()));
+      List<State> unique = new ArrayList<>();
+      Set<String> signatures = new HashSet<>();
+      for (State state : next) {
+        String signature =
+            state.community().stream()
+                .sorted()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining("|"));
+        if (signatures.add(signature)) unique.add(state);
+        if (unique.size() == beamWidth) break;
+      }
+      beam = unique;
+      if (beam.get(0).totalGain() > best.totalGain()) best = beam.get(0);
+    }
+    return best.community();
+  }
+
+  private Set<Integer> alternatives(Set<Integer> community) {
+    Set<Integer> result = new LinkedHashSet<>();
+    for (int node : community)
+      for (int neighbor : graph.neighbors(node))
+        if (!community.contains(neighbor)) result.add(neighbor);
+    return result;
+  }
+
+  private List<Integer> prioritized(Set<Integer> alternatives, Set<Integer> community) {
+    List<Integer> result = new ArrayList<>(alternatives);
+    result.sort(
+        Comparator.<Integer>comparingInt(candidate -> -connections(candidate, community))
+            .thenComparingInt(graph::degree)
+            .thenComparingInt(Integer::intValue));
+    if (result.size() > candidateBudget) return new ArrayList<>(result.subList(0, candidateBudget));
+    return result;
+  }
+
+  private int connections(int candidate, Set<Integer> community) {
+    int count = 0;
+    for (int neighbor : graph.neighbors(candidate)) if (community.contains(neighbor)) count++;
+    return count;
+  }
+
+  private record State(Set<Integer> community, double totalGain) {}
+}

@@ -1,0 +1,9 @@
+{
+  "membership_weight": 0.2000,
+  "external_penalty": 0.0000,
+  "minimum_membership": 0.6000,
+  "modularity_slack": 0.0000,
+  "selection_metric": "mean_validation_f1",
+  "validation_f1": 0.6976354886,
+  "tie_breaking": "higher F1, then lower weight, lower slack, lower threshold"
+}

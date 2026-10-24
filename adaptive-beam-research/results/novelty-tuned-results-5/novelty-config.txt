@@ -1,0 +1,5 @@
+gamma=0.45
+h=1.0
+membership_weight=0.2
+external_penalty=0.0
+minimum_membership=0.6

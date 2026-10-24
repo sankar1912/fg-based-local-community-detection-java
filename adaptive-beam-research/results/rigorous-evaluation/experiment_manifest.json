@@ -1,0 +1,14 @@
+{
+  "status": "STARTED",
+  "data_directory": "E:\\VII Sem\\Monicka\\datasets\\generated-lfr",
+  "training": ["LFR1","LFR2"],
+  "validation": ["LFR3","LFR4","LFR5"],
+  "held_out_test": ["LFR6","LFR7","LFR8","LFR9"],
+  "eligible_seed_rule": "all node identifiers present in truth and graph",
+  "gamma": 0.4500,
+  "h": 1.0000,
+  "random_seed": 20250721,
+  "selected_config": null,
+  "models": "pending",
+  "updated_at": "2026-10-24T17:04:50.628771700Z"
+}
