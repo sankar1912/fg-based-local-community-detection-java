@@ -91,7 +91,7 @@ public final class BeamSearchExperiment {
             }
             ExecutorService pool =
                 Executors.newFixedThreadPool(
-                    Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors())));
+                    Math.max(1, Math.min(12, Runtime.getRuntime().availableProcessors())));
             double total = 0;
             for (Future<Double> job : pool.invokeAll(jobs)) total += job.get();
             pool.shutdown();
@@ -108,8 +108,15 @@ public final class BeamSearchExperiment {
 
   private static void run(Path data, Path output, CandidateScorer scorer, Config config, int limit)
       throws Exception {
-    try (BufferedWriter writer = Files.newBufferedWriter(output.resolve("per-seed.csv"))) {
-      writer.write("dataset,seed,method,recall,precision,f1,runtime_ms\n");
+    Path perSeed = output.resolve("per-seed.csv");
+    canonicalize(perSeed);
+    Set<String> completed = loadCompleted(perSeed);
+    boolean append = Files.exists(perSeed) && Files.size(perSeed) > 0;
+    try (BufferedWriter writer =
+        append
+            ? Files.newBufferedWriter(perSeed, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+            : Files.newBufferedWriter(perSeed, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      if (!append) writer.write("dataset,seed,method,recall,precision,f1,runtime_ms\n");
       for (int index = 5; index < 9; index++) {
         LfrSpec spec = LfrSpec.paperTable()[index];
         Graph graph = DatasetReader.edgeList(data.resolve(spec.name() + ".edgelist"), false);
@@ -119,17 +126,28 @@ public final class BeamSearchExperiment {
         if (limit > 0 && seeds.size() > limit) seeds = new ArrayList<>(seeds.subList(0, limit));
         ExecutorService pool =
             Executors.newFixedThreadPool(
-                Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors())));
+                Math.max(1, Math.min(12, Runtime.getRuntime().availableProcessors())));
         List<Future<List<String>>> futures = new ArrayList<>();
-        for (int seed : seeds)
-          futures.add(pool.submit(() -> evaluate(spec.name(), graph, truth, seed, scorer, config)));
+        for (int seed : seeds) {
+          boolean complete = true;
+          for (String method : List.of("FG", "GreedyLogistic", "BeamLogistic"))
+            if (!completed.contains(key(spec.name(), seed, method))) complete = false;
+          if (!complete)
+            futures.add(
+                pool.submit(() -> evaluate(spec.name(), graph, truth, seed, scorer, config, completed)));
+        }
         for (Future<List<String>> future : futures)
-          for (String row : future.get()) writer.write(row);
+          for (String row : future.get()) {
+            writer.write(row);
+            String[] parts = row.split(",", -1);
+            completed.add(key(parts[0], Integer.parseInt(parts[1]), parts[2]));
+          }
         writer.flush();
         pool.shutdown();
-        System.out.println(spec.name() + ": " + seeds.size() + " seeds");
+        System.out.println(spec.name() + ": processed " + futures.size() + " seed jobs");
       }
     }
+    canonicalize(perSeed);
     summarize(output.resolve("per-seed.csv"), output.resolve("summary.csv"));
   }
 
@@ -139,25 +157,84 @@ public final class BeamSearchExperiment {
       List<Set<Integer>> truth,
       int seed,
       CandidateScorer scorer,
-      Config config) {
+      Config config,
+      Set<String> completed) {
     Set<Integer> expected = Metrics.truthFor(seed, truth);
     List<String> rows = new ArrayList<>();
-    long start = System.nanoTime();
-    Metrics.Score fg = Metrics.score(new FGDetector(graph).detect(seed, GAMMA, H), expected);
-    rows.add(row(dataset, seed, "FG", fg, elapsed(start)));
-    start = System.nanoTime();
-    Metrics.Score greedy =
-        Metrics.score(
-            new HybridFGDetector(graph, scorer, .2, 0, .6, .05).detect(seed, GAMMA, H), expected);
-    rows.add(row(dataset, seed, "GreedyLogistic", greedy, elapsed(start)));
-    start = System.nanoTime();
-    Metrics.Score beam =
-        Metrics.score(
-            new BeamFGDetector(graph, scorer, config.width, config.depth, config.learnedWeight)
-                .detect(seed, GAMMA, H),
-            expected);
-    rows.add(row(dataset, seed, "BeamLogistic", beam, elapsed(start)));
+    if (!completed.contains(key(dataset, seed, "FG"))) {
+      long start = System.nanoTime();
+      Metrics.Score fg = Metrics.score(new FGDetector(graph).detect(seed, GAMMA, H), expected);
+      rows.add(row(dataset, seed, "FG", fg, elapsed(start)));
+    }
+    if (!completed.contains(key(dataset, seed, "GreedyLogistic"))) {
+      long start = System.nanoTime();
+      Metrics.Score greedy =
+          Metrics.score(
+              new HybridFGDetector(graph, scorer, .2, 0, .6, .05).detect(seed, GAMMA, H), expected);
+      rows.add(row(dataset, seed, "GreedyLogistic", greedy, elapsed(start)));
+    }
+    if (!completed.contains(key(dataset, seed, "BeamLogistic"))) {
+      long start = System.nanoTime();
+      Metrics.Score beam =
+          Metrics.score(
+              new BeamFGDetector(graph, scorer, config.width, config.depth, config.learnedWeight)
+                  .detect(seed, GAMMA, H),
+              expected);
+      rows.add(row(dataset, seed, "BeamLogistic", beam, elapsed(start)));
+    }
     return rows;
+  }
+
+  private static String key(String dataset, int seed, String method) {
+    return dataset + "\t" + seed + "\t" + method;
+  }
+
+  private static Set<String> loadCompleted(Path source) throws IOException {
+    Set<String> completed = new HashSet<>();
+    if (!Files.exists(source)) return completed;
+    try (BufferedReader reader = Files.newBufferedReader(source)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] parts = line.split(",", -1);
+        if (parts.length != 7 || parts[0].equals("dataset")) continue;
+        try {
+          Integer.parseInt(parts[1]);
+          Double.parseDouble(parts[5]);
+          completed.add(key(parts[0], Integer.parseInt(parts[1]), parts[2]));
+        } catch (NumberFormatException ignored) {
+          // Ignore an incomplete line left by an interrupted run.
+        }
+      }
+    }
+    return completed;
+  }
+
+  private static void canonicalize(Path source) throws IOException {
+    if (!Files.exists(source) || Files.size(source) == 0) return;
+    LinkedHashMap<String, String> rows = new LinkedHashMap<>();
+    try (BufferedReader reader = Files.newBufferedReader(source)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] parts = line.split(",", -1);
+        if (parts.length != 7 || parts[0].equals("dataset")) continue;
+        try {
+          int seed = Integer.parseInt(parts[1]);
+          Double.parseDouble(parts[3]);
+          Double.parseDouble(parts[4]);
+          Double.parseDouble(parts[5]);
+          Double.parseDouble(parts[6]);
+          rows.put(key(parts[0], seed, parts[2]), line);
+        } catch (NumberFormatException ignored) {
+          // Ignore incomplete or malformed rows from an interrupted process.
+        }
+      }
+    }
+    Path cleaned = source.resolveSibling(source.getFileName() + ".cleaned");
+    try (BufferedWriter writer = Files.newBufferedWriter(cleaned)) {
+      writer.write("dataset,seed,method,recall,precision,f1,runtime_ms\n");
+      for (String line : rows.values()) writer.write(line + "\n");
+    }
+    Files.move(cleaned, source, StandardCopyOption.REPLACE_EXISTING);
   }
 
   private static List<Integer> eligible(Graph graph, List<Set<Integer>> truth) {

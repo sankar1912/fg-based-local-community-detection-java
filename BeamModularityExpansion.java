@@ -31,14 +31,18 @@ public final class BeamModularityExpansion {
       List<State> next = new ArrayList<>();
       for (State state : beam) {
         Set<Integer> alternatives = alternatives(state.community());
+        int internal = modularity.internal(state.community());
+        int external = modularity.external(state.community());
         for (int candidate : alternatives) {
           Set<Integer> folded =
               foldedCache.computeIfAbsent(candidate, v -> folding.build(v, gamma));
           if (folded.stream().noneMatch(node -> !state.community().contains(node))) continue;
-          double delta = modularity.delta(state.community(), alternatives, folded);
+          double delta =
+              modularity.delta(state.community(), alternatives, folded, internal, external);
           if (!Double.isFinite(delta) || delta < 0) continue;
           double[] features =
-              CandidateFeatures.extract(graph, state.community(), alternatives, folded, gamma);
+              CandidateFeatures.extract(
+                  graph, state.community(), alternatives, folded, gamma, delta);
           double probability = scorer == null ? .5 : scorer.probability(features);
           if (!Double.isFinite(probability)) probability = .5;
           Set<Integer> community = new LinkedHashSet<>(state.community());

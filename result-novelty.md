@@ -360,3 +360,28 @@ improvement is considered statistically credible.
 - [`beam-vs-greedy-f1.png`](output/beam-search-results-5/figures/beam-vs-greedy-f1.png)
 
 ![Beam-search comparison](output/beam-search-results-5/figures/beam-vs-greedy-f1.png)
+
+## Scalability audit of the beam improvement
+
+The implementation was also started with `seedLimit=0` to test all eligible
+held-out seeds. The run was intentionally not counted as a completed final
+all-seed experiment because it reached only the beginning of LFR7 before the
+largest folded graphs became computationally impractical. Its partial output
+is preserved in [`output/beam-search-results-full/per-seed.csv`](output/beam-search-results-full/per-seed.csv),
+but it has no valid final `summary.csv` or figures and must not be interpreted
+as an all-seed estimate.
+
+This audit found a second weakness in the base implementation: folding and
+modularity evaluation repeatedly recomputed local edge statistics. The code
+now uses incremental folding connection counts, caches state-level modularity
+counts during beam expansion, supports resumable per-seed output, and removes
+incomplete or duplicate rows after interruption. These changes preserve the
+paper rule and the beam scoring rule; they address execution cost, not the
+quality metrics.
+
+The defensible result is therefore two-part: on the verified five-seed held-
+out comparison, beam search improves mean F1 from `0.601565` to `0.861696`;
+on the full-volume audit, exact beam evaluation exposes a scalability flaw that
+requires further engineering (for example candidate caps or approximate local
+statistics) before claiming a 3,000-seed result. No full-seed performance
+claim is made here.

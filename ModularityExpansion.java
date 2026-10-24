@@ -34,7 +34,10 @@ public final class ModularityExpansion {
   }
 
   public double delta(Set<Integer> c, Set<Integer> a, Set<Integer> f) {
-    int ein = internal(c), eout = external(c);
+    return delta(c, a, f, internal(c), external(c));
+  }
+
+  double delta(Set<Integer> c, Set<Integer> a, Set<Integer> f, int ein, int eout) {
     double x = 0, y = 0, degree = 0, internalF = 0;
     for (int i : f) {
       if (!c.contains(i)) {
@@ -53,13 +56,13 @@ public final class ModularityExpansion {
     return (ein + x) / den - old;
   }
 
-  private int internal(Set<Integer> c) {
+  int internal(Set<Integer> c) {
     int e = 0;
     for (int u : c) for (int v : g.neighbors(u)) if (u < v && c.contains(v)) e++;
     return e;
   }
 
-  private int external(Set<Integer> c) {
+  int external(Set<Integer> c) {
     int e = 0;
     for (int u : c) for (int v : g.neighbors(u)) if (!c.contains(v)) e++;
     return e;

@@ -21,12 +21,22 @@ public final class CandidateFeatures {
       Set<Integer> alternative,
       Set<Integer> folded,
       double gamma) {
-    Folding folding = new Folding(graph);
     ModularityExpansion modularity = new ModularityExpansion(graph);
+    double delta = modularity.delta(community, alternative, folded);
+    return extract(graph, community, alternative, folded, gamma, delta);
+  }
+
+  static double[] extract(
+      Graph graph,
+      Set<Integer> community,
+      Set<Integer> alternative,
+      Set<Integer> folded,
+      double gamma,
+      double delta) {
+    Folding folding = new Folding(graph);
     double density = folding.density(folded);
     double first = overlap(graph, folded, community, false);
     double second = overlap(graph, folded, community, true);
-    double delta = modularity.delta(community, alternative, folded);
     if (!Double.isFinite(delta)) delta = -10.0;
 
     int external = 0;

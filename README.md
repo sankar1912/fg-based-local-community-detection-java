@@ -345,3 +345,10 @@ generator version, seed, `gamma`, and `h` in the experiment metadata.
 See [PAPER_ANALYSIS.md](PAPER_ANALYSIS.md) for the equations, algorithm
 mapping, reported findings, exact Table I LFR parameters, and the distinction
 between paper-reference values and code-generated results.
+
+The beam-search evaluator additionally uses incremental folding statistics,
+state-level modularity caching, resumable per-seed output, and CSV
+canonicalization after interruption. These changes are documented in
+`result-novelty.md`; the preserved five-seed beam result is the verified
+quality comparison, while `output/beam-search-results-full/` is only a partial
+scalability audit and is not a completed all-seed result.

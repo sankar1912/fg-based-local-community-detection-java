@@ -15,28 +15,35 @@ public final class Folding {
     Set<Integer> f = new LinkedHashSet<>();
     f.add(start);
     Set<Integer> r = new LinkedHashSet<>(graph.neighbors(start));
+    Map<Integer, Integer> connectionCounts = new HashMap<>();
+    for (int candidate : r) connectionCounts.put(candidate, 1);
+    int internalEdges = 0;
     while (!r.isEmpty()) {
       int w =
           r.stream()
               .min(
-                  Comparator.<Integer>comparingInt(v -> -connections(v, f))
+                  Comparator.<Integer>comparingInt(v -> -connectionCounts.getOrDefault(v, 0))
                       .thenComparingInt(graph::degree)
                       .thenComparingInt(v -> v))
               .orElseThrow();
-      Set<Integer> candidate = new LinkedHashSet<>(f);
-      candidate.add(w);
-      if (density(candidate) < gamma) break;
+      int candidateInternalEdges = internalEdges + connectionCounts.getOrDefault(w, 0);
+      int candidateSize = f.size() + 1;
+      double candidateDensity =
+          candidateSize < 2
+              ? 1.
+              : candidateInternalEdges / (double) (candidateSize * (candidateSize - 1) / 2);
+      if (candidateDensity < gamma) break;
       f.add(w);
+      internalEdges = candidateInternalEdges;
       r.remove(w);
-      for (int u : graph.neighbors(w)) if (!f.contains(u)) r.add(u);
+      for (int u : graph.neighbors(w)) {
+        if (!f.contains(u)) {
+          r.add(u);
+          connectionCounts.merge(u, 1, Integer::sum);
+        }
+      }
     }
     return f;
-  }
-
-  private int connections(int v, Set<Integer> f) {
-    int n = 0;
-    for (int u : graph.neighbors(v)) if (f.contains(u)) n++;
-    return n;
   }
 
   public double density(Set<Integer> s) {
