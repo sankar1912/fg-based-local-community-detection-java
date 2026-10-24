@@ -306,9 +306,9 @@ The current evidence supports the following cautious statement:
 > consistent across datasets. The current evidence does not establish a
 > statistically credible universal improvement over the original FG method.
 
-The next research step is to complete the restartable all-eligible-seed run and
-then report the final paired confidence intervals and tests without changing
-the frozen configuration after inspecting LFR6-LFR9.
+That statement applies only to the earlier safe-gated exploratory variant. The
+later adaptive-beam experiment below freezes its configuration before testing
+and completes the all-eligible-seed evaluation.
 
 ## Best current algorithm: validation-tuned beam-search FG
 
@@ -345,10 +345,9 @@ It also reduces the LFR8 F1 standard deviation from `0.3838` for FG to
 `0.0308` for the beam method. This is promising evidence that the base paper's
 irreversible greedy candidate commitment is a major weakness.
 
-This is not yet a final publication claim. The evaluation contains five seeds
-per held-out graph, and the all-eligible-seed run still needs to be completed.
-The beam method should be evaluated on all 3,000 held-out seeds before the
-improvement is considered statistically credible.
+This table is an exploratory five-seed result. It is superseded for the final
+performance claim by the complete adaptive-beam evaluation below, which uses
+all 3,000 held-out seeds.
 
 ### Beam-search artifacts
 
@@ -379,12 +378,10 @@ incomplete or duplicate rows after interruption. These changes preserve the
 paper rule and the beam scoring rule; they address execution cost, not the
 quality metrics.
 
-The defensible result is therefore two-part: on the verified five-seed held-
-out comparison, beam search improves mean F1 from `0.601565` to `0.861696`;
-on the full-volume audit, exact beam evaluation exposes a scalability flaw that
-requires further engineering (for example candidate caps or approximate local
-statistics) before claiming a 3,000-seed result. No full-seed performance
-claim is made here.
+The unrestricted-beam scalability audit remains a useful negative result: its
+candidate expansion is too expensive on the largest graphs. The adaptive
+candidate-budget version below addresses that execution flaw and supplies the
+complete 3,000-seed result.
 
 ## Scalable improvement: validation-tuned adaptive beam
 
@@ -413,9 +410,8 @@ Held-out five-seed comparison:
 | AdaptiveBeam | 0.86064833 | 138.541 |
 
 Adaptive beam therefore loses `0.001048` mean F1 relative to the unrestricted
-beam in this smoke-scale held-out evaluation while reducing mean runtime by
-about `24%`. It is the strongest practical candidate for the large all-seed
-run, but the result still needs all eligible seeds before a publication claim.
+ beam in this smoke-scale held-out evaluation while reducing mean runtime by
+ about `24%`. The all-eligible-seed result is reported in the next section.
 
 Artifacts:
 
