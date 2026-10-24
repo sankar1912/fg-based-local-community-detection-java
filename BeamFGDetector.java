@@ -11,9 +11,21 @@ public final class BeamFGDetector {
 
   public BeamFGDetector(
       Graph graph, CandidateScorer scorer, int beamWidth, int maxDepth, double learnedWeight) {
+    this(graph, scorer, beamWidth, maxDepth, learnedWeight, Integer.MAX_VALUE);
+  }
+
+  public BeamFGDetector(
+      Graph graph,
+      CandidateScorer scorer,
+      int beamWidth,
+      int maxDepth,
+      double learnedWeight,
+      int candidateBudget) {
     this.graph = graph;
     folding = new FoldingCommunity(graph);
-    modularity = new BeamModularityExpansion(graph, scorer, beamWidth, maxDepth, learnedWeight);
+    modularity =
+        new BeamModularityExpansion(
+            graph, scorer, beamWidth, maxDepth, learnedWeight, candidateBudget);
     relaxation = new RelaxationStage(graph);
   }
 

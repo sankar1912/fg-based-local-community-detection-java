@@ -385,3 +385,42 @@ on the full-volume audit, exact beam evaluation exposes a scalability flaw that
 requires further engineering (for example candidate caps or approximate local
 statistics) before claiming a 3,000-seed result. No full-seed performance
 claim is made here.
+
+## Scalable improvement: validation-tuned adaptive beam
+
+`AdaptiveBeamExperiment` addresses the computational flaw by ranking
+alternative seed nodes using the same cheap local connection, degree, and ID
+ordering used by folding, then constructing folded subgraphs only for a
+validation-tuned candidate budget. The beam width, depth, learned weight, and
+all paper equations remain unchanged. The budget is selected only on LFR3-LFR5
+and held fixed for LFR6-LFR9.
+
+Validation selected `candidate_budget=64`:
+
+| Candidate budget | Validation mean F1 |
+|---:|---:|
+| 16 | 0.33910979 |
+| 32 | 0.33770001 |
+| **64** | **0.36929050** |
+| 128 | 0.36883852 |
+
+Held-out five-seed comparison:
+
+| Method | Mean F1 | Mean runtime (ms) |
+|---|---:|---:|
+| FG | 0.60156524 | 1070.329 |
+| Full BeamLogistic | 0.86169623 | 182.375 |
+| AdaptiveBeam | 0.86064833 | 138.541 |
+
+Adaptive beam therefore loses `0.001048` mean F1 relative to the unrestricted
+beam in this smoke-scale held-out evaluation while reducing mean runtime by
+about `24%`. It is the strongest practical candidate for the large all-seed
+run, but the result still needs all eligible seeds before a publication claim.
+
+Artifacts:
+
+- [`AdaptiveBeamExperiment.java`](AdaptiveBeamExperiment.java)
+- [`summary.csv`](output/adaptive-beam-results-5/summary.csv)
+- [`validation-sweep.csv`](output/adaptive-beam-results-5/validation-sweep.csv)
+- [`experiment-config.txt`](output/adaptive-beam-results-5/experiment-config.txt)
+- [`adaptive-beam-vs-fg-f1.png`](output/adaptive-beam-results-5/figures/adaptive-beam-vs-fg-f1.png)

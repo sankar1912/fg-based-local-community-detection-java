@@ -352,3 +352,9 @@ canonicalization after interruption. These changes are documented in
 `result-novelty.md`; the preserved five-seed beam result is the verified
 quality comparison, while `output/beam-search-results-full/` is only a partial
 scalability audit and is not a completed all-seed result.
+
+`AdaptiveBeamExperiment` adds a validation-tuned candidate budget to the beam
+search. On the verified five-seed comparison, budget 64 reaches mean F1
+`0.860648` versus `0.861696` for unrestricted beam search, while reducing mean
+runtime from `182.375 ms` to `138.541 ms`. Its output and figure are stored in
+`output/adaptive-beam-results-5/`.
