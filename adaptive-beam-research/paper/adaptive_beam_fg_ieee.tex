@@ -1,0 +1,440 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+
+% This manuscript is an original account of the implementation in this
+% repository. It follows the IEEE journal structure without reproducing the
+% wording of the source paper.
+\usepackage{amsmath,amssymb,booktabs,graphicx,algorithm,algorithmic}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\FG}{\mathrm{FG}}
+\newcommand{\AB}{\mathrm{AB}}
+
+\title{Adaptive Candidate-Budget Beam Search for Folded-Subgraph Local Community Detection}
+
+\author{Author Name\\
+Department and Institution\\
+City, Country\\
+email@example.com}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Local community detection seeks the community containing a queried seed node
+without requiring a global partition of the network. The folded-subgraph (FG)
+method improves local modularity expansion by grouping tightly connected
+neighbors before community growth. Its modularity stage, however, commits to a
+single candidate at each iteration. A locally favorable candidate can
+therefore prevent a later, more suitable expansion. This paper introduces a
+validation-tuned adaptive candidate-budget beam-search extension of FG. The
+extension preserves the folded-subgraph construction, density rule,
+modularity equations, non-negative expansion constraint, and relaxation stage.
+It changes only the search policy: several partial expansion paths are retained,
+while a validated local budget limits the number of expensive folded candidates
+examined at each state. On the generated LFR benchmark used by this
+implementation, the method was selected on validation graphs with a beam
+width of two, maximum depth five, learned path weight 0.10, and candidate
+budget 64. Across all 3,000 eligible seeds in held-out LFR6--LFR9 graphs,
+mean F1 increased from 0.621031 for the original implementation to 0.713990
+for the adaptive method. Mean per-seed runtime was 180.392 ms for the adaptive
+method and 1,323.625 ms for the original method in this Java implementation.
+The improvement was not universal: LFR6 favored the original method, whereas
+the adaptive method improved LFR7--LFR9. The results identify irreversible
+greedy expansion as a substantive weakness while avoiding a claim of universal
+dominance.
+\end{abstract}
+
+\begin{IEEEkeywords}
+local community detection, folded subgraph, modularity expansion, beam
+search, LFR benchmark, graph mining.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Community detection is commonly formulated as a global graph-partitioning
+problem. In many applications, however, the user supplies one node and needs
+only the local community surrounding that node. Local methods can reduce
+memory and computation, but they must make decisions with incomplete context
+and are sensitive to boundary edges.
+
+The folded-subgraph method of Zhang and Bi groups neighboring nodes into dense
+local structures before modularity expansion \cite{zhang2025fg}. This design
+is attractive because it combines a local representation with a modularity
+criterion and a relaxation step for noisy boundaries. The method nevertheless
+uses a greedy modularity decision: after evaluating the available folded
+subgraphs, it permanently selects the candidate with the greatest immediate
+gain. That decision is not necessarily the best decision for the complete
+expansion path.
+
+This paper studies that failure mode and proposes a search-based extension.
+The central idea is deliberately narrow. The original graph statistics and
+folding rules are retained, but the modularity stage is allowed to preserve a
+small number of alternatives. A learned local compatibility score is used only
+as a secondary path-ranking term. To control the extra cost, candidates are
+first ordered by inexpensive local connectivity information and only a
+validation-tuned prefix is folded exactly.
+
+The contributions are as follows:
+\begin{enumerate}
+  \item We identify irreversible candidate commitment as a distinct algorithmic
+  weakness of the FG modularity stage.
+  \item We implement a validation-tuned adaptive candidate-budget beam search
+  that preserves the original folded-subgraph and relaxation mechanisms.
+  \item We provide a Java implementation with deterministic preprocessing,
+  restartable output, cached local computations, per-seed metrics, and figures.
+  \item We evaluate every eligible seed in LFR6--LFR9, totaling 3,000 held-out
+  seeds, and report both gains and regressions.
+\end{enumerate}
+
+The exact graph realizations used by the original paper are not distributed
+with the paper supplied to this project. Accordingly, the experiments below
+use deterministic generated LFR graphs with the paper's published macro
+parameters. The results are implementation results on those realizations, not
+claims that the paper's original Table III--V numbers have been reproduced.
+
+\section{Background and Original FG Method}
+\subsection{Local problem definition}
+Let $G=(V,E)$ be an undirected graph and let $s\in V$ be a seed node. The goal
+is to estimate the hidden community $C_s$ containing $s$ using local graph
+access. The algorithm returns $\widehat{C}_s$. Evaluation compares the two
+sets using recall, precision, and F1:
+\begin{align}
+ R &= \frac{|\widehat{C}_s\cap C_s|}{|C_s|},\\
+ P &= \frac{|\widehat{C}_s\cap C_s|}{|\widehat{C}_s|},\\
+ F_1 &= \frac{2RP}{R+P}.
+\end{align}
+
+\subsection{Folded-subgraph construction}
+For a starting node $v$, the folding procedure initializes $F=\{v\}$ and
+$R=N(v)$. At each step, it selects the candidate with the largest number of
+links into $F$. Ties are resolved by smaller degree and then by node ID. The
+candidate is tentatively added only when the induced density remains at least
+$\gamma$:
+\begin{equation}
+ \rho(F)=\frac{2|E(F)|}{|F|(|F|-1)} \geq \gamma.
+\end{equation}
+The result is denoted by $F(v)$.
+
+\subsection{Folding-community stage}
+Starting from a current community $C$, the original method constructs folded
+subgraphs for boundary candidates. It accepts a folded subgraph when at least
+half of its nodes overlap the current community:
+\begin{equation}
+ |F(v)\cap C| \geq \frac{|F(v)|}{2}.
+\end{equation}
+The process repeats until a complete pass adds no node.
+
+\subsection{Modularity stage}
+For a community $C$, let $e_{in}$ denote internal edges and $e_{out}$ denote
+edges leaving the community. The local modularity ratio is:
+\begin{equation}
+ M(C)=\frac{e_{in}}{e_{out}}.
+\end{equation}
+For a folded candidate $F$, the implementation follows the paper's local
+quantities. Let $x$ count edges from new candidate nodes into $C$, let $y$
+count the contribution of alternative nodes that connect into $C$, and let
+$q$ count internal edges among new nodes. If $d$ is the sum of degrees of new
+candidate nodes, the boundary adjustment is:
+\begin{equation}
+ z=d-x-\frac{q}{2}.
+\end{equation}
+The change used by the implementation is:
+\begin{equation}
+ \Delta M = \frac{e_{in}+x}{e_{out}+z-y}-M(C),
+\end{equation}
+when the denominator is positive. The original method selects the candidate
+with maximum non-negative $\Delta M$ and discards the remaining alternatives.
+
+\subsection{Relaxation stage}
+The relaxation score combines first- and second-order contact with the current
+community:
+\begin{align}
+ f_1(F,C)&=\frac{|N(F)\cap C|}{|C|},\\
+ f_2(F,C)&=\frac{|NN(F)\cap C|}{|C|},\\
+ f(F,C)&=f_1(F,C)+\beta f_2(F,C).
+\end{align}
+The implementation uses $\beta=0.5$ and accepts the best candidate when
+$f(F,C)\geq h$. The full FG detector repeatedly applies folding-community
+expansion, modularity expansion, and relaxation until no progress is made.
+
+\section{Failure Analysis}
+\subsection{Irreversible local choice}
+The modularity stage ranks candidates by immediate gain. Suppose candidate
+$a$ has a slightly larger $\Delta M$ than candidate $b$. The original method
+chooses $a$ even if adding $b$ would expose a sequence of dense candidates that
+eventually yields a better community. Because the current community changes
+after each addition, the discarded candidate cannot be reconsidered.
+
+\subsection{Capacity is not the primary issue}
+The repository includes pointwise logistic, MLP, Bernoulli--Bernoulli RBM,
+pairwise ranking, and shallow boosted-stump variants. The exploratory results
+did not show a consistent gain from simply increasing predictor complexity.
+This suggests that the main limitation is the irreversible search decision,
+rather than the absence of a more expressive candidate classifier.
+
+\subsection{Computational cost}
+The original and unrestricted beam implementations repeatedly build folded
+subgraphs and recompute local edge statistics. The final implementation uses
+incremental folding connection counts, cached folded subgraphs, cached
+community edge statistics, thread-local detector reuse, and resumable CSV
+output. These optimizations do not alter the mathematical acceptance rules.
+
+\section{Adaptive Beam-FG Method}
+\subsection{Method overview}
+The proposed method is called \emph{Validation-Tuned Adaptive Candidate-Budget
+Beam-Search FG}, abbreviated AdaptiveBeam. It retains a list of partial
+communities instead of a single modularity path. The state score is:
+\begin{equation}
+ S(C)=\sum_{t=1}^{d}\Delta M_t+\lambda p_t,
+\end{equation}
+where $p_t$ is a learned local compatibility probability and $\lambda$ is a
+small secondary weight. The modularity gain remains the primary term.
+
+\subsection{Candidate budget}
+Before constructing an expensive folded subgraph, boundary candidates are
+ordered by:
+\begin{enumerate}
+  \item decreasing number of links into the current community;
+  \item increasing graph degree;
+  \item increasing node identifier.
+\end{enumerate}
+Only the first $B$ candidates are evaluated exactly. The budget is not chosen
+from held-out test data. It is selected on validation graphs from the set
+$\{16,32,64,128\}$.
+
+\subsection{Learned compatibility score}
+The scorer is logistic regression over nine local features: folded density,
+community overlap, first-order overlap, second-order overlap, modularity gain,
+external edge ratio, folded size, mean degree, and internal candidate ratio.
+Training uses LFR1--LFR5. Validation uses the first five eligible seeds in
+LFR3--LFR5. The selected scorer contributes only $\lambda=0.10$ to the path
+score; ground-truth labels are never used during held-out detection.
+
+\begin{algorithm}[t]
+\caption{Adaptive candidate-budget beam expansion}
+\label{alg:adaptive}
+\begin{algorithmic}[1]
+\REQUIRE current community $C$, graph $G$, density $\gamma$, width $W$,
+depth $D$, budget $B$
+\STATE $\mathcal{B}\leftarrow\{(C,0)\}$
+\STATE $C^*\leftarrow C$
+\FOR{$d=1$ to $D$}
+  \STATE $\mathcal{N}\leftarrow\emptyset$
+  \FOR{each $(C_i,S_i)\in\mathcal{B}$}
+    \STATE rank boundary candidates of $C_i$ by local priority
+    \FOR{each of the first $B$ candidates $v$}
+      \STATE construct $F(v)$ using the original folding rule
+      \IF{$F(v)$ adds a node and $\Delta M(C_i,F(v))\geq0$}
+        \STATE compute local features and $p(v)$
+        \STATE add $(C_i\cup F(v),S_i+\Delta M+0.10p(v))$ to $\mathcal{N}$
+      \ENDIF
+    \ENDFOR
+  \ENDFOR
+  \STATE remove duplicate communities from $\mathcal{N}$
+  \STATE retain the best $W$ states by score
+  \IF{$\mathcal{N}=\emptyset$} \STATE \textbf{break} \ENDIF
+  \STATE $\mathcal{B}\leftarrow\mathcal{N}$
+  \STATE update $C^*$ with the highest-scoring state
+\ENDFOR
+\RETURN $C^*$
+\end{algorithmic}
+\end{algorithm}
+
+The returned community is then passed through the unchanged relaxation stage.
+Thus, the new method changes the search policy, not the definition of a valid
+folded subgraph or the paper's modularity equations.
+
+\section{Experimental Design}
+\subsection{Datasets}
+The implementation encodes the LFR parameter rows reported in the supplied
+paper. LFR1--LFR5 contain 200 nodes with average degree 7, maximum degree 15,
+and mixing coefficients from 0.1 to 0.5. LFR6 contains 1,000 nodes with
+average degree 15, maximum degree 50, and maximum community size 50. LFR7
+uses the same graph scale with maximum community size 300. LFR8 and LFR9
+contain 500 nodes with average degree 7 and maximum degree 15. All rows use
+the specified degree and community exponents and non-overlapping communities.
+
+The supplied paper does not provide the complete original graph files and
+random seeds. The repository therefore uses deterministic generated
+realizations with the published macro parameters. This distinction is
+essential when comparing the present numbers with the paper's tables.
+
+\subsection{Protocol}
+The model is trained before held-out testing. Configuration search is limited
+to validation data. Once the candidate budget and path parameters are frozen,
+LFR6--LFR9 remain untouched until final evaluation. Every eligible node in the
+held-out graphs is used as a seed. The final evaluation contains 3,000 seeds
+per method.
+
+\subsection{Metrics}
+For each seed, recall, precision, F1, and runtime are recorded. The summary
+reports arithmetic means over seeds in each dataset. Paired comparisons use
+the same seed for the two methods. The report does not interpret a positive
+mean difference as proof of statistical significance without a separately
+specified confidence procedure.
+
+\section{Results}
+\subsection{Validation}
+The validation sweep selected $B=64$:
+\begin{table}[t]
+\caption{Candidate-budget validation results.}
+\label{tab:validation}
+\centering
+\begin{tabular}{rr}
+\toprule
+Budget & Mean validation F1\\
+\midrule
+16 & 0.339110\\
+32 & 0.337700\\
+64 & \textbf{0.369291}\\
+128 & 0.368839\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{All-seed comparison}
+Table~\ref{tab:f1} reports the complete held-out comparison.
+\begin{table}[t]
+\caption{Mean F1 over all eligible held-out seeds.}
+\label{tab:f1}
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Dataset & Seeds & FG & Full beam & AdaptiveBeam\\
+\midrule
+LFR6 & 1000 & 0.754533 & 0.686188 & 0.686188\\
+LFR7 & 1000 & 0.338073 & 0.586587 & \textbf{0.593505}\\
+LFR8 & 500 & 0.737770 & 0.851961 & \textbf{0.851974}\\
+LFR9 & 500 & 0.803206 & 0.872581 & 0.872581\\
+All & 3000 & 0.621031 & 0.711682 & \textbf{0.713990}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\caption{Overall recall, precision, F1, and runtime.}
+\label{tab:overall}
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Method & Recall & Precision & F1 & ms/seed\\
+\midrule
+FG & 0.948242 & 0.538054 & 0.621031 & 1323.625\\
+Full beam & 0.889162 & 0.647175 & 0.711682 & 249.489\\
+AdaptiveBeam & 0.892300 & 0.648429 & \textbf{0.713990} & \textbf{180.392}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+AdaptiveBeam improves mean F1 over FG by 0.092959, or approximately 14.97
+percent relative to the FG mean. It improves over unrestricted beam search by
+0.002308 while reducing mean runtime by approximately 27.7 percent. In the
+paired seed comparison with FG, AdaptiveBeam wins 1,253 seeds, ties 1,235,
+and loses 512.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../output/adaptive-beam-results-full/figures/adaptive-beam-vs-fg-f1.png}
+\caption{F1 comparison over LFR6--LFR9. The adaptive method preserves the
+beam improvement on LFR7--LFR9 while remaining close to unrestricted beam.}
+\label{fig:f1}
+\end{figure}
+
+\section{Discussion}
+The most important result is not only the aggregate mean. The dataset-wise
+pattern reveals the operating regime of the new method. LFR7 is the clearest
+case: the original greedy method obtains F1 0.338073, while unrestricted and
+adaptive beam obtain 0.586587 and 0.593505. This supports the hypothesis that
+greedy commitment is harmful when the local graph contains several plausible
+expansion routes. LFR8 and LFR9 show the same direction with smaller
+differences.
+
+LFR6 is a counterexample. FG obtains F1 0.754533, while both beam variants
+obtain 0.686188. A beam search can preserve an attractive alternative that is
+not favorable for this graph regime, and the learned secondary score cannot
+guarantee correction. The method should therefore be presented as a robust
+search extension with regime-dependent behavior, not as a universally superior
+replacement.
+
+The precision and recall averages also explain the F1 change. FG has higher
+recall overall but much lower precision. Beam methods reduce recall somewhat
+while improving precision substantially. The resulting balance produces the
+higher F1 values. This is consistent with the paper's motivation that local
+community methods must control boundary noise rather than simply absorb more
+neighbors.
+
+\section{Threats to Validity and Limitations}
+First, the original graph realizations and random seeds used by the paper are
+not available in this repository. The LFR results reproduce the published
+parameter regimes, not the authors' exact realizations. Second, the complete
+experiment is a benchmark study on four held-out LFR settings; it is not a
+substitute for evaluation on the paper's real-world networks. Third, the
+candidate budget was selected from a small validation sweep. A larger study
+could investigate budget stability across graph families. Fourth, runtime
+depends on the Java runtime, hardware, graph representation, and cache state.
+Finally, the reported paired counts are descriptive; a formal confidence
+interval or paired randomization test should be added before a publication
+claim about statistical significance.
+
+\section{Reproducibility}
+The source code, generated data, configuration, per-seed CSV, summary, and
+figure are stored in the public repository:
+\begin{center}
+\url{https://github.com/sankar1912/fg-based-local-community-detection-java}
+\end{center}
+
+The main commands are:
+\begin{verbatim}
+javac -Xlint:all -d out *.java
+java -cp out foldedsubgraph.RigorousEvaluationTest
+java -cp out foldedsubgraph.AdaptiveBeamExperiment \\
+  datasets/generated-lfr output/adaptive-beam-results-full 0
+\end{verbatim}
+
+The final configuration is recorded in
+\texttt{output/adaptive-beam-results-full/experiment-config.txt}. The complete
+summary is in \texttt{summary.csv}, and the 9,000 per-seed rows are in
+\texttt{per-seed.csv}. The implementation also records validation results so
+that the selected budget can be audited.
+
+\section{Conclusion}
+This paper presented AdaptiveBeam, a validation-tuned adaptive
+candidate-budget beam-search extension of folded-subgraph local community
+detection. The method targets a specific weakness of the original FG
+algorithm: its irreversible selection of one immediate modularity winner. By
+retaining a small number of expansion paths and restricting expensive folding
+to a validated candidate budget, the method improves the overall F1 score and
+reduces runtime relative to unrestricted beam search in the complete
+evaluation.
+
+Across 3,000 held-out seeds, AdaptiveBeam reaches mean F1 0.713990 compared
+with 0.621031 for FG. The result is encouraging but conditional: LFR6 remains
+a regression, and the graph realizations are generated from published LFR
+parameters rather than recovered from the authors' private experiment files.
+The appropriate conclusion is that adaptive multi-path expansion is a
+promising improvement and that irreversible greedy commitment is a measurable
+weakness, not that the new method is universally optimal.
+
+\begin{thebibliography}{00}
+\bibitem{zhang2025fg}
+M. Zhang and W. Bi, ``A local community detection method based on folded
+subgraph,'' \emph{IEEE Transactions on Knowledge and Data Engineering},
+vol. 37, no. 7, pp. 3869--3880, 2025.
+
+\bibitem{lfr2008}
+A. Lancichinetti, S. Fortunato, and F. Radicchi, ``Benchmark graphs for
+testing community detection algorithms,'' \emph{Physical Review E}, vol. 78,
+no. 4, Art. no. 046110, 2008.
+
+\bibitem{newman2006}
+M. E. J. Newman, ``Modularity and community structure in networks,''
+\emph{Proceedings of the National Academy of Sciences}, vol. 103, no. 23,
+pp. 8577--8582, 2006.
+
+\bibitem{freund1997}
+Y. Freund and R. E. Schapire, ``A decision-theoretic generalization of
+on-line learning and an application to boosting,'' \emph{Journal of Computer
+and System Sciences}, vol. 55, no. 1, pp. 119--139, 1997.
+\end{thebibliography}
+
+\end{document}

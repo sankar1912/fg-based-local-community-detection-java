@@ -1,0 +1,12 @@
+training_split=LFR1,LFR2
+validation_split=LFR3,LFR4,LFR5
+final_training_split=LFR1,LFR2,LFR3,LFR4,LFR5
+train_examples=3544
+validation_examples=4972
+final_examples=8516
+feature_names=folded_density,community_overlap,first_order_overlap,second_order_overlap,modularity_gain,external_edge_ratio,candidate_size,mean_degree,internal_candidate_ratio
+label=at least half of folded candidate nodes in seed truth community
+random_seed=20250721
+Logistic=logistic-regression
+MLP=mlp-1-hidden-layer
+RBM=rbm-bernoulli-cd1

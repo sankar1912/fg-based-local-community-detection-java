@@ -1,0 +1,4 @@
+training_graphs=LFR1,LFR2,LFR3,LFR4,LFR5
+training_examples=8516
+label=majority of folded candidate nodes belongs to seed truth community
+gamma=0.45

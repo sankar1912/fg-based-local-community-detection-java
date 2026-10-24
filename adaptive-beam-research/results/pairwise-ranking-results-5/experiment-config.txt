@@ -1,0 +1,8 @@
+training=LFR1-LFR5
+held_out=LFR6-LFR9
+model=pairwise-logistic-ranking
+membership_weight=0.2
+external_penalty=0.0
+minimum_membership=0.6
+modularity_slack=0.05
+seed_limit=5

@@ -1,0 +1,8 @@
+training=LFR1-LFR5
+validation=LFR3-LFR5 first five eligible seeds
+held_out=LFR6-LFR9
+beam_width=2
+max_depth=5
+learned_weight=0.10
+candidate_budget=64
+seed_limit=5

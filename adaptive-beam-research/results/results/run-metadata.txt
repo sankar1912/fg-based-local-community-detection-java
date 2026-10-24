@@ -1,0 +1,9 @@
+method=FG-based
+gamma=0.45
+h=1.0
+beta=0.5
+lfr_seed=20250721
+lfr_seed_limit=1 (0 means all)
+generated_at=2026-10-23T15:59:40.380428700Z
+paper_reference_tables=PNG files generated from reported values in the supplied PDF
+generated_lfr_note=macro-parameter-matched deterministic benchmark; not authors exact realization
