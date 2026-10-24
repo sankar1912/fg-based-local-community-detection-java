@@ -42,6 +42,11 @@ and detected network structure.
 | `RelaxationStage.java` | Algorithm 4. Computes `f1`, `f2`, and `f = f1 + beta*f2`; uses the paper's `beta = 0.5`. |
 | `FGDetector.java` | Algorithm 5. Orchestrates the folding, modularity, and relaxation stages until the paper's stopping condition is reached. |
 | `MBaseline.java` | Single-node M-based baseline used for comparison with FG-based results. |
+| `CandidateFeatures.java` | Extracts local structural features for a `(current community, folded candidate)` pair. |
+| `CandidateTrainingData.java` | Creates supervised candidate examples from training graphs only. |
+| `LogisticCandidateScorer.java` | Trains and stores the standardized logistic compatibility model used by the novelty. |
+| `HybridModularityExpansion.java` | Novel candidate reranking stage using normalized modularity, learned compatibility, and external-edge penalty. |
+| `HybridFGDetector.java` | Full FG pipeline with only the modularity-stage candidate selection replaced. |
 
 ### Command-line runners
 
@@ -72,6 +77,9 @@ and detected network structure.
 | `PaperMetricImages.java` | Generates Recall, Precision, and F-score images for the paper's Tables III and IV. |
 | `AblationMetricImages.java` | Generates Recall, Precision, and F-score images for Table VI's three-stage ablation. |
 | `GeneratePaperOutputs.java` | Generates all nine benchmark files and the standard PNG report set. |
+| `NoveltyExperiment.java` | Trains on LFR1-LFR5 and compares base FG against the novelty on held-out LFR6-LFR9. |
+| `NoveltyParameterSweep.java` | Tunes membership weight, external penalty, and minimum compatibility on validation LFR3-LFR5 after training on LFR1-LFR2. |
+| `NoveltyVisualization.java` | Converts computed novelty summary CSV files into base-versus-novelty PNG charts. |
 
 ## Build
 
@@ -189,6 +197,44 @@ java -cp out foldedsubgraph.RunAllResults ^
 ```
 
 The `average` row in each CSV records the exact number of evaluated seeds.
+
+## Novelty experiment
+
+The proposed novelty is documented in [novelty.md](novelty.md). It is a
+query-conditioned energy-style candidate scorer: the current community and
+folded candidate are represented by local structural features, and a learned
+compatibility score reranks candidates during the modularity stage. The
+original FG method remains unchanged as the baseline.
+
+Run a fast held-out experiment:
+
+```cmd
+java -cp out foldedsubgraph.NoveltyExperiment ^
+  datasets/generated-lfr output/novelty-results 1
+```
+
+Run all nodes in held-out LFR6-LFR9:
+
+```cmd
+java -cp out foldedsubgraph.NoveltyExperiment ^
+  datasets/generated-lfr output/novelty-results 0
+```
+
+The novelty output stores the trained model, training metadata, per-seed base
+and novelty metrics, an aggregate summary, and comparison PNGs. The first
+executed one-seed smoke experiment was equal to FG on LFR6, LFR7, and LFR9 and
+worse on LFR8; it must not be described as an improvement until the held-out
+tuning protocol in `novelty.md` produces a consistent gain.
+
+Tune the novelty parameters on validation graphs:
+
+```cmd
+java -cp out foldedsubgraph.NoveltyParameterSweep ^
+  datasets/generated-lfr output/novelty-tuning 1
+```
+
+This stores `tuning.csv`, `best-config.txt`, and the validation scorer. Use the
+selected values as the final three arguments to `NoveltyExperiment`.
 
 ## Input formats
 
