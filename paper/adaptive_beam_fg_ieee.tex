@@ -92,6 +92,180 @@ use deterministic generated LFR graphs with the paper's published macro
 parameters. The results are implementation results on those realizations, not
 claims that the paper's original Table III--V numbers have been reproduced.
 
+\section{Literature Survey}
+\subsection{From global partitions to local search}
+Early community detection work usually treated the task as a partitioning
+problem over the entire graph. Divisive methods based on edge betweenness and
+modularity made the idea of a community concrete by looking for groups with
+more internal structure than expected under a null model
+\cite{newman2004,fortunato2010}. Hierarchical agglomeration later made large
+networks easier to process by maintaining community-level statistics during
+merging \cite{clauset2004}. These methods are useful when a full map of the
+network is required, but they can do unnecessary work when an application has
+one query node and needs only its surrounding group.
+
+Local community detection changes the question. Given a seed node or a small
+seed set, it seeks a nearby community while inspecting only a limited part of
+the graph. Andersen and Lang showed that seed-set expansion can be connected
+to conductance guarantees and can be carried out without examining the whole
+network \cite{andersen2006}. Clauset developed a local fitness search that
+adds boundary nodes while the community score improves, illustrating the
+practical value of local decisions on large networks \cite{clauset2005}.
+The local setting also creates a clear weakness: a decision that is acceptable
+at one step can remove the best route to the community at a later step.
+
+\subsection{Modularity, conductance, and local fitness}
+Modularity compares the observed number of internal edges with the number
+expected under a degree-preserving null model. It became a standard way to
+compare candidate partitions because it rewards dense internal connections
+and penalizes excessive boundary links \cite{newman2006}. In a seed expansion
+algorithm, however, a local modularity change is not the same as the quality
+of the final community. The denominator changes after every addition, and a
+candidate with a good immediate change may expose poor boundary nodes later.
+
+Conductance and related flow measures offer a different view. They emphasize
+the cut between a community and the rest of the graph and have been used to
+give local methods both a stopping rule and a connection to graph partitioning
+theory \cite{andersen2006}. Fitness-based methods take a more direct route by
+balancing internal links against the external degree. Lancichinetti, Fortunato,
+and Kertesz used a local fitness function to identify overlapping and
+hierarchical communities, with a resolution parameter controlling the scale of
+the result \cite{lancichinetti2009}. These approaches demonstrate that local
+criteria can find meaningful groups, but they also show why the choice of the
+growth rule and stopping condition matters.
+
+The folded-subgraph method considered in this work occupies a related middle
+ground. It first groups tightly connected neighboring nodes and then applies a
+local modularity expansion followed by a relaxation step. The folding stage
+reduces the number of individual decisions, while the density condition keeps
+the candidate group locally coherent. The method is therefore more structured
+than a single-node greedy expansion, but its modularity stage still commits
+to one immediate winner. The present work focuses on that specific search
+decision rather than replacing the original density or modularity definitions.
+
+\subsection{Benchmarks and evaluation practice}
+Synthetic benchmarks are important because real networks rarely provide a
+complete and undisputed ground truth. The LFR benchmark introduced by
+Lancichinetti, Fortunato, and Radicchi varies degree and community-size
+distributions instead of relying on uniform toy graphs \cite{lfr2008}. It
+therefore exposes failures that may remain hidden on small regular examples.
+The same authors later extended the benchmark to directed and weighted
+networks with overlapping communities \cite{lfr2009}. Comparative studies
+have used these generators to show that algorithm rankings can change with
+degree heterogeneity, mixing, community size, and overlap
+\cite{lfrcomparative}.
+
+Evaluation should consequently report more than one average score. Recall is
+useful when missing a true member is costly, precision is useful when boundary
+noise is costly, and F1 summarizes the balance between them. Runtime matters
+as well because a local method is often chosen for repeated queries. Repeated
+seeds and held-out graph realizations are preferable to a single favorable
+example. Parameter selection must also remain separate from final testing;
+otherwise a method can appear stronger simply because it has been adjusted to
+the test graphs.
+
+\subsection{Search, ranking, and the gap addressed here}
+Greedy expansion is attractive because it is simple and fast, but its main
+limitation is path dependence. Once a node or folded group is accepted, the
+algorithm changes the candidate boundary and cannot return to a discarded
+alternative. Beam search addresses this limitation by retaining a small set
+of partial solutions. The idea has also appeared in recent community-search
+systems that combine local exploration with a learned or optimized ranking
+function \cite{communityaf}. The added search width, however, can multiply
+the number of folded-subgraph computations. A practical local method needs a
+way to limit the expensive part of the search.
+
+This paper uses a narrow intervention. The original folded representation,
+density threshold, modularity change, non-negative acceptance rule, and
+relaxation stage are kept. Only the expansion policy changes: a small beam
+retains alternative paths, and a validation-selected candidate budget limits
+how many boundary nodes are folded exactly. A logistic compatibility score is
+used as a secondary ranking signal, not as a replacement for the modularity
+criterion. This design makes the source of any improvement easier to inspect:
+if the result changes, the change is attributable to search and candidate
+budgeting rather than a new community definition.
+
+\subsection{Position of the present study}
+The literature establishes four points that guide the experiments. First,
+local detection is appropriate when the query concerns one seed or a small
+neighborhood. Second, local quality functions are useful but can be affected
+by irreversible growth decisions. Third, heterogeneous benchmarks are needed
+to reveal regime-dependent behavior. Fourth, a local method should report
+precision, recall, F1, runtime, and the validation protocol together. The
+contribution of AdaptiveBeam is to combine these points in a controlled
+extension of folded-subgraph expansion. It is not presented as a replacement
+for all community detection methods; it is a test of whether limited
+multi-path search improves one specific greedy stage.
+
+\subsection{Comparison with common method families}
+The methods in the literature can be grouped by the information they use and
+the way they decide when to stop. Global partitioning methods use statistics
+from the entire graph. Their advantage is a consistent view of all nodes, but
+the cost can be unnecessary for a single query. They also return a partition
+even when the application is interested in one seed-centered group. Local
+methods avoid this cost by working from a seed, but their result depends more
+strongly on the starting point and on the growth rule.
+
+Flow-based local methods are attractive when a community is separated by a
+small boundary. They use a seed preference and a conductance-like objective,
+which gives the search a connection to graph cuts. Their output is often
+stable when the seed lies well inside the target community. A seed close to a
+boundary can still lead to a different answer, especially when two groups
+share many links. The folded-subgraph construction responds to this problem
+by treating a dense group of neighboring nodes as one candidate, so the
+decision is based on a small local structure instead of one boundary node.
+
+Fitness methods and modularity methods make a different tradeoff. Fitness
+usually gives an easy-to-compute local score and can support overlapping
+communities. Modularity gives a more explicit comparison with a null model,
+but its value depends on both internal edges and the boundary. In the present
+implementation, modularity is retained because it is the criterion used by
+the source method. The beam extension is therefore compatible with the
+original analysis: it compares the same candidate gains, but it does not
+force the best immediate gain to be the only path carried forward.
+
+Learning-based methods can rank candidates from graph features, but a learned
+ranker can also hide the reason for a decision. A model trained on one graph
+family may prefer the wrong boundary behavior on another family. For that
+reason, the scorer in this study has a limited role. It contributes a small
+secondary term after the modularity calculation, and all settings are fixed
+before the held-out graphs are evaluated. The main comparison is consequently
+between greedy search, unrestricted beam search, and budgeted beam search.
+
+\subsection{Why a small beam is a reasonable design choice}
+An exhaustive search over all candidate paths is not suitable for repeated
+local queries. If a boundary has many candidates, the number of possible
+communities grows rapidly with search depth. A beam keeps only the strongest
+partial communities at each level. It is not guaranteed to find the global
+best community, but it gives the algorithm a chance to preserve a route that
+would be lost by greedy expansion.
+
+The beam width must be chosen with care. A wide beam can improve coverage of
+possible paths while increasing folding and modularity calculations. It can
+also keep several similar communities and spend work exploring duplicates. A
+small width is easier to cache and easier to inspect. The present study uses a
+width of two and a maximum depth of five, with duplicate communities removed
+at every level. The candidate budget adds a second control: boundary nodes
+are first ordered by inexpensive local information, and only a fixed prefix
+is folded exactly. The budget is selected on validation graphs rather than on
+the held-out LFR6--LFR9 graphs.
+
+\subsection{Open issues identified by prior work}
+Several issues remain open across local community detection studies. There is
+no single definition of a community that works equally well for all networks.
+Degree heterogeneity can make a high-degree boundary node look important even
+when it belongs to another group. Overlap makes the ground truth itself less
+clear. Resolution parameters can change the size of the returned group, and
+different benchmark generators can produce different algorithm rankings.
+
+These issues affect the interpretation of the present results. A higher F1 on
+one LFR setting does not prove that the returned community is better for every
+application. It only shows that the predicted and planted memberships agree
+more closely under that setting. Similarly, a lower runtime in this Java
+implementation is evidence about this implementation and hardware, not a
+general theorem about all beam methods. The study therefore reports the
+dataset-level pattern, the per-seed counts, and the limitations together.
+
 \section{Background and Original FG Method}
 \subsection{Local problem definition}
 Let $G=(V,E)$ be an undirected graph and let $s\in V$ be a seed node. The goal
@@ -430,6 +604,50 @@ no. 4, Art. no. 046110, 2008.
 M. E. J. Newman, ``Modularity and community structure in networks,''
 \emph{Proceedings of the National Academy of Sciences}, vol. 103, no. 23,
 pp. 8577--8582, 2006.
+
+\bibitem{newman2004}
+M. E. J. Newman and M. Girvan, ``Finding and evaluating community structure
+in networks,'' \emph{Physical Review E}, vol. 69, no. 2, Art. no. 026113,
+2004.
+
+\bibitem{clauset2004}
+A. Clauset, M. E. J. Newman, and C. Moore, ``Finding community structure in
+very large networks,'' \emph{Physical Review E}, vol. 70, no. 6, Art. no.
+066111, 2004.
+
+\bibitem{andersen2006}
+R. Andersen and K. J. Lang, ``Communities from seed sets,'' in
+\emph{Proceedings of the 15th International Conference on World Wide Web},
+2006, pp. 223--232.
+
+\bibitem{clauset2005}
+A. Clauset, ``Finding local community structure in networks,''
+\emph{Physical Review E}, vol. 72, no. 2, Art. no. 026132, 2005.
+
+\bibitem{fortunato2010}
+S. Fortunato, ``Community detection in graphs,'' \emph{Physics Reports},
+vol. 486, no. 3--5, pp. 75--174, 2010.
+
+\bibitem{lancichinetti2009}
+A. Lancichinetti, S. Fortunato, and J. Kertesz, ``Detecting the overlapping
+and hierarchical community structure in complex networks,''
+\emph{New Journal of Physics}, vol. 11, Art. no. 033015, 2009.
+
+\bibitem{lfr2009}
+A. Lancichinetti and S. Fortunato, ``Benchmarks for testing community
+detection algorithms on directed and weighted graphs with overlapping
+communities,'' \emph{Physical Review E}, vol. 80, no. 1, Art. no. 016118,
+2009.
+
+\bibitem{lfrcomparative}
+A. Lancichinetti and S. Fortunato, ``Community detection algorithms: a
+comparative analysis,'' \emph{Physical Review E}, vol. 80, no. 5, Art. no.
+056117, 2009.
+
+\bibitem{communityaf}
+Y. Li, J. Zhang, and X. Lin, ``CommunityAF: An example-based community
+search method via autoregressive flow,'' \emph{Proceedings of the VLDB
+Endowment}, vol. 16, no. 9, pp. 2266--2278, 2023.
 
 \bibitem{freund1997}
 Y. Freund and R. E. Schapire, ``A decision-theoretic generalization of

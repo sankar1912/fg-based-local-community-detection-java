@@ -5,13 +5,15 @@ the implemented method. It follows the conventional research-paper order:
 
 1. abstract and keywords;
 2. introduction and contributions;
-3. background and mathematical description of the original FG method;
-4. failure analysis;
-5. the proposed AdaptiveBeam method and pseudocode;
-6. experimental protocol;
-7. complete all-seed results;
-8. discussion, limitations, reproducibility, and conclusion;
-9. references.
+3. literature survey covering global, local, modularity, fitness, benchmark,
+   and search-based methods;
+4. background and mathematical description of the original FG method;
+5. failure analysis;
+6. the proposed AdaptiveBeam method and pseudocode;
+7. experimental protocol;
+8. complete all-seed results;
+9. discussion, limitations, reproducibility, and conclusion;
+10. references.
 
 The manuscript is independently written for this repository. It cites the
 folded-subgraph paper as the source of the baseline method and does not copy
