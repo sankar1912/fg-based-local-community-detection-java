@@ -86,6 +86,10 @@ and detected network structure.
 | `GradientBoostedCandidateScorer.java` | Learns nonlinear candidate compatibility with deterministic boosted decision stumps. |
 | `BoostedTreeExperiment.java` | Tunes and evaluates the nonlinear boosted-stump selector. |
 | `BoostedTreeVisualization.java` | Generates the boosted-stump comparison figure. |
+| `BeamModularityExpansion.java` | Keeps multiple modularity-expansion paths to avoid irreversible greedy decisions. |
+| `BeamFGDetector.java` | Runs FG with beam-search expansion and unchanged relaxation. |
+| `BeamSearchExperiment.java` | Tunes and evaluates the beam-search improvement. |
+| `BeamSearchVisualization.java` | Generates the beam-search comparison figure. |
 
 ## Build
 

@@ -43,6 +43,11 @@ public final class RigorousEvaluationTest {
         || probability > 1) {
       throw new AssertionError("RBM scorer is invalid");
     }
+    Set<Integer> beamFirst = new BeamFGDetector(graph, rbm, 2, 3, .1).detect(0, .45, 1.0);
+    Set<Integer> beamSecond = new BeamFGDetector(graph, rbm, 2, 3, .1).detect(0, .45, 1.0);
+    if (!beamFirst.equals(beamSecond) || beamFirst.isEmpty()) {
+      throw new AssertionError("Beam detector is not deterministic or returned an empty community");
+    }
     System.out.println("RigorousEvaluationTest: PASS");
   }
 }

@@ -309,3 +309,54 @@ The current evidence supports the following cautious statement:
 The next research step is to complete the restartable all-eligible-seed run and
 then report the final paired confidence intervals and tests without changing
 the frozen configuration after inspecting LFR6-LFR9.
+
+## Best current algorithm: validation-tuned beam-search FG
+
+The strongest improvement so far comes from changing the irreversible greedy
+expansion itself. `BeamFGDetector` keeps the best few valid expansion paths
+instead of committing immediately to one folded candidate. The original
+folding construction, the original `DeltaM` calculation, the non-negative
+modularity eligibility rule, and the relaxation stage remain in the pipeline.
+The learned logistic score contributes only a validation-tuned secondary path
+ranking term.
+
+Validation selected:
+
+```text
+beam_width    = 2
+max_depth     = 5
+learned_weight = 0.10
+validation F1 = 0.36883852
+```
+
+Source: [`output/beam-search-results-5/summary.csv`](output/beam-search-results-5/summary.csv)
+
+| Dataset | FG F1 | Greedy logistic F1 | Beam logistic F1 | Beam - FG |
+|---|---:|---:|---:|---:|
+| LFR6 | 0.8622 | 0.8622 | 0.8622 | 0.0000 |
+| LFR7 | 0.2679 | 0.3851 | 0.7220 | +0.4541 |
+| LFR8 | 0.5935 | 0.7026 | 0.9382 | +0.3446 |
+| LFR9 | 0.6826 | 0.8613 | 0.9244 | +0.2418 |
+| **Mean** | **0.6016** | **0.7028** | **0.8617** | **+0.2601** |
+
+The beam-search result is an absolute mean F1 improvement of `0.260131`, or
+approximately `43.24%` relative to FG, on this five-seed held-out evaluation.
+It also reduces the LFR8 F1 standard deviation from `0.3838` for FG to
+`0.0308` for the beam method. This is promising evidence that the base paper's
+irreversible greedy candidate commitment is a major weakness.
+
+This is not yet a final publication claim. The evaluation contains five seeds
+per held-out graph, and the all-eligible-seed run still needs to be completed.
+The beam method should be evaluated on all 3,000 held-out seeds before the
+improvement is considered statistically credible.
+
+### Beam-search artifacts
+
+- [`experiment-config.txt`](output/beam-search-results-5/experiment-config.txt)
+- [`validation-sweep.csv`](output/beam-search-results-5/validation-sweep.csv)
+- [`logistic-scorer.txt`](output/beam-search-results-5/logistic-scorer.txt)
+- [`per-seed.csv`](output/beam-search-results-5/per-seed.csv)
+- [`summary.csv`](output/beam-search-results-5/summary.csv)
+- [`beam-vs-greedy-f1.png`](output/beam-search-results-5/figures/beam-vs-greedy-f1.png)
+
+![Beam-search comparison](output/beam-search-results-5/figures/beam-vs-greedy-f1.png)
